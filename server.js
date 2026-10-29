@@ -4,18 +4,33 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const { promisify } = require("node:util");
 const { DatabaseSync } = require("node:sqlite");
+const { isIsoDate, checkUsername, checkEmail, checkPassword } = require("./lib/validation");
 
 const ROOT = __dirname;
-const DATA_DIR = path.join(ROOT, "data");
-const DATABASE_PATH = path.join(DATA_DIR, "part91.sqlite");
+const DATABASE_PATH = process.env.FAR_NOTES_DB
+  ? path.resolve(ROOT, process.env.FAR_NOTES_DB)
+  : path.join(ROOT, "data", "part91.sqlite");
+const DATA_DIR = path.dirname(DATABASE_PATH);
+const RATE_LIMIT_DISABLED = process.env.FAR_NOTES_DISABLE_RATE_LIMIT === "1";
 const SUBSECTIONS_PATH = path.join(ROOT, "regulation-subsections.json");
 const subsectionCatalog = JSON.parse(fs.readFileSync(SUBSECTIONS_PATH, "utf8"));
 const PORT = Number.parseInt(process.env.PORT || "3000", 10);
+// 127.0.0.1 keeps the server private to this machine. Use HOST=0.0.0.0 to reach it from a phone on the LAN.
+const HOST = process.env.HOST || "127.0.0.1";
+// Origins of the Capacitor app shells (mobile/): iOS serves the bundled pages from capacitor://localhost,
+// Android from https://localhost. These origins may call the API, but only with a bearer token.
+const APP_ORIGINS = new Set(
+  (process.env.FAR_NOTES_APP_ORIGINS ?? "capacitor://localhost,https://localhost")
+    .split(",").map((origin) => origin.trim()).filter(Boolean)
+);
+// The app sends this header to ask for its session token in the login response body.
+const APP_CLIENT_HEADER = "x-far-notes-client";
 const MAX_BODY_BYTES = 16_384;
 const SUPPORTED_PARTS = new Set(["61", "91"]);
+// Tracker files only signed-in users may load; everything else static must be in publicPaths.
+const TRACKER_PATHS = new Set(["/", "/index.html", "/app.js", "/app-core.js"]);
 const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const RESET_MAX_AGE_MS = 30 * 60 * 1000;
-const PASSWORD_MIN_LENGTH = 15;
 const scrypt = promisify(crypto.scrypt);
 const authAttempts = new Map();
 
@@ -339,8 +354,18 @@ function parseCookies(request) {
   return cookies;
 }
 
+// The website authenticates with the HttpOnly cookie. The app sends "Authorization: Bearer <token>".
+// Requests from an app origin authenticate by bearer token only, so allowing those origins can't
+// turn a website cookie into a cross-site request.
+function sessionToken(request) {
+  const bearer = /^Bearer ([a-f0-9]{64})$/.exec(request.headers.authorization || "");
+  if (bearer) return bearer[1];
+  if (APP_ORIGINS.has(request.headers.origin)) return null;
+  return parseCookies(request).get("study_session");
+}
+
 function authenticatedUser(request) {
-  const token = parseCookies(request).get("study_session");
+  const token = sessionToken(request);
   if (!token || !/^[a-f0-9]{64}$/.test(token)) return null;
   const session = database.prepare(`
     SELECT users.id, users.username, users.email, sessions.expires_at
@@ -363,12 +388,25 @@ function clearSessionCookie(response) {
   response.setHeader("Set-Cookie", "study_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0");
 }
 
-function isSameOrigin(request) {
+function isAllowedOrigin(request) {
   const origin = request.headers.origin;
-  return !origin || origin === `http://${request.headers.host}`;
+  return !origin || origin === `http://${request.headers.host}` || APP_ORIGINS.has(origin);
+}
+
+function isAppClient(request) {
+  return request.headers[APP_CLIENT_HEADER] === "app";
+}
+
+// CORS for the app shells only. No Allow-Credentials: the app never relies on cookies.
+function applyCors(request, response) {
+  const origin = request.headers.origin;
+  if (!APP_ORIGINS.has(origin)) return;
+  response.setHeader("Access-Control-Allow-Origin", origin);
+  response.setHeader("Vary", "Origin");
 }
 
 function consumeRateLimit(request, key, limit = 8) {
+  if (RATE_LIMIT_DISABLED) return true;
   const now = Date.now();
   const ip = request.socket.remoteAddress || "unknown";
   const mapKey = `${key}:${ip}`;
@@ -398,7 +436,7 @@ async function handleAuthRequest(request, response, url) {
   }
 
   if (pathname === "/api/auth/login" && request.method === "POST") {
-    if (!isSameOrigin(request)) {
+    if (!isAllowedOrigin(request)) {
       json(response, 403, { error: "Request origin is not allowed." });
       return true;
     }
@@ -429,7 +467,7 @@ async function handleAuthRequest(request, response, url) {
         sha256(token), user.id, now + SESSION_MAX_AGE_MS
       );
       setSessionCookie(response, token);
-      json(response, 200, { username: user.username });
+      json(response, 200, isAppClient(request) ? { username: user.username, token } : { username: user.username });
     } catch (error) {
       json(response, error.statusCode || 400, { error: error.message });
     }
@@ -437,7 +475,7 @@ async function handleAuthRequest(request, response, url) {
   }
 
   if (pathname === "/api/auth/register" && request.method === "POST") {
-    if (!isSameOrigin(request)) {
+    if (!isAllowedOrigin(request)) {
       json(response, 403, { error: "Request origin is not allowed." });
       return true;
     }
@@ -450,20 +488,9 @@ async function handleAuthRequest(request, response, url) {
       const username = typeof body.username === "string" ? body.username.trim() : "";
       const email = typeof body.email === "string" ? body.email.trim() : "";
       const password = typeof body.password === "string" ? body.password : "";
-      if (!/^[A-Za-z0-9._-]{1,64}$/.test(username)) {
-        json(response, 400, { error: "Username must be 1-64 characters and use only letters, numbers, periods, underscores, or hyphens." });
-        return true;
-      }
-      if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        json(response, 400, { error: "Enter a valid email address." });
-        return true;
-      }
-      if ([...password].length < PASSWORD_MIN_LENGTH) {
-        json(response, 400, { error: `Password must be at least ${PASSWORD_MIN_LENGTH} characters.` });
-        return true;
-      }
-      if (Buffer.byteLength(password) > 1024) {
-        json(response, 400, { error: "Password must be 1024 bytes or fewer." });
+      const credentialsError = checkUsername(username) || checkEmail(email) || checkPassword(password);
+      if (credentialsError) {
+        json(response, 400, { error: credentialsError });
         return true;
       }
       const existing = database.prepare("SELECT id FROM users WHERE username = ? OR email = ?").get(username, email);
@@ -494,11 +521,11 @@ async function handleAuthRequest(request, response, url) {
   }
 
   if (pathname === "/api/auth/logout" && request.method === "POST") {
-    if (!isSameOrigin(request)) {
+    if (!isAllowedOrigin(request)) {
       json(response, 403, { error: "Request origin is not allowed." });
       return true;
     }
-    const token = parseCookies(request).get("study_session");
+    const token = sessionToken(request);
     if (token) database.prepare("DELETE FROM sessions WHERE token_hash = ?").run(sha256(token));
     clearSessionCookie(response);
     json(response, 200, { loggedOut: true });
@@ -506,7 +533,7 @@ async function handleAuthRequest(request, response, url) {
   }
 
   if (pathname === "/api/auth/forgot-password" && request.method === "POST") {
-    if (!isSameOrigin(request)) {
+    if (!isAllowedOrigin(request)) {
       json(response, 403, { error: "Request origin is not allowed." });
       return true;
     }
@@ -536,7 +563,7 @@ async function handleAuthRequest(request, response, url) {
   }
 
   if (pathname === "/api/auth/reset-password" && request.method === "POST") {
-    if (!isSameOrigin(request)) {
+    if (!isAllowedOrigin(request)) {
       json(response, 403, { error: "Request origin is not allowed." });
       return true;
     }
@@ -548,12 +575,9 @@ async function handleAuthRequest(request, response, url) {
         json(response, 400, { error: "This reset link is invalid or has expired. Request a new one." });
         return true;
       }
-      if ([...password].length < PASSWORD_MIN_LENGTH) {
-        json(response, 400, { error: `Password must be at least ${PASSWORD_MIN_LENGTH} characters.` });
-        return true;
-      }
-      if (Buffer.byteLength(password) > 1024) {
-        json(response, 400, { error: "Password must be 1024 bytes or fewer." });
+      const passwordError = checkPassword(password);
+      if (passwordError) {
+        json(response, 400, { error: passwordError });
         return true;
       }
       const reset = database.prepare(`
@@ -610,13 +634,6 @@ function readJson(request) {
   });
 }
 
-function isIsoDate(value) {
-  if (value === "") return true;
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
-}
-
 function serveStatic(request, response, pathname) {
   const files = {
     "/": ["index.html", "text/html; charset=utf-8"],
@@ -632,6 +649,8 @@ function serveStatic(request, response, pathname) {
     "/styles.css": ["styles.css", "text/css; charset=utf-8"],
     "/aircraft-front-view.png": ["aircraft-front-view.png", "image/png"],
     "/app.js": ["app.js", "text/javascript; charset=utf-8"],
+    "/app-core.js": ["app-core.js", "text/javascript; charset=utf-8"],
+    "/api-client.js": ["api-client.js", "text/javascript; charset=utf-8"],
     "/login.js": ["login.js", "text/javascript; charset=utf-8"],
     "/create-account.js": ["create-account.js", "text/javascript; charset=utf-8"],
     "/forgot-password.js": ["forgot-password.js", "text/javascript; charset=utf-8"],
@@ -660,19 +679,34 @@ async function handleRequest(request, response) {
   }
   const pathname = url.pathname;
 
+  applyCors(request, response);
+  if (request.method === "OPTIONS") {
+    if (!APP_ORIGINS.has(request.headers.origin)) {
+      json(response, 403, { error: "Request origin is not allowed." });
+      return;
+    }
+    response.writeHead(204, {
+      "Access-Control-Allow-Methods": "GET, POST, PATCH",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Far-Notes-Client",
+      "Access-Control-Max-Age": "600"
+    });
+    response.end();
+    return;
+  }
+
   if (await handleAuthRequest(request, response, url)) return;
 
   const publicPaths = new Set([
     "/login", "/login.html", "/create-account", "/create-account.html", "/forgot-password", "/forgot-password.html",
     "/reset-password", "/reset-password.html", "/styles.css", "/aircraft-front-view.png",
-    "/login.js", "/create-account.js", "/forgot-password.js", "/reset-password.js"
+    "/login.js", "/create-account.js", "/forgot-password.js", "/reset-password.js", "/api-client.js"
   ]);
   const user = authenticatedUser(request);
   if (pathname.startsWith("/api/") && !user) {
     json(response, 401, { error: "Sign in required." });
     return;
   }
-  if ((pathname === "/" || pathname === "/index.html" || pathname === "/app.js") && !user) {
+  if (TRACKER_PATHS.has(pathname) && !user) {
     response.writeHead(302, { Location: "/login", "Cache-Control": "no-store" });
     response.end();
     return;
@@ -694,7 +728,7 @@ async function handleRequest(request, response) {
   }
 
   if (pathname === "/api/regulations" && request.method === "POST") {
-    if (!isSameOrigin(request)) {
+    if (!isAllowedOrigin(request)) {
       json(response, 403, { error: "Request origin is not allowed." });
       return;
     }
@@ -722,7 +756,7 @@ async function handleRequest(request, response) {
 
   const match = pathname.match(/^\/api\/regulations\/(\d+)$/);
   if (match && request.method === "PATCH") {
-    if (!isSameOrigin(request)) {
+    if (!isAllowedOrigin(request)) {
       json(response, 403, { error: "Request origin is not allowed." });
       return;
     }
@@ -765,7 +799,7 @@ async function handleRequest(request, response) {
 
   const subsectionMatch = pathname.match(/^\/api\/subsections\/(\d+)$/);
   if (subsectionMatch && request.method === "PATCH") {
-    if (!isSameOrigin(request)) {
+    if (!isAllowedOrigin(request)) {
       json(response, 403, { error: "Request origin is not allowed." });
       return;
     }
@@ -833,7 +867,7 @@ async function handleRequest(request, response) {
     json(response, 405, { error: "Method not allowed." });
     return;
   }
-  if (!publicPaths.has(pathname) && pathname !== "/" && pathname !== "/index.html" && pathname !== "/app.js") {
+  if (!publicPaths.has(pathname) && !TRACKER_PATHS.has(pathname)) {
     json(response, 404, { error: "Not found." });
     return;
   }
@@ -848,8 +882,8 @@ const server = http.createServer((request, response) => {
   });
 });
 
-server.listen(PORT, "127.0.0.1", () => {
-  console.log(`FAA Regulations Study Log is running at http://127.0.0.1:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`FAA Regulations Study Log is running at http://${HOST}:${PORT}`);
   console.log(`SQLite database: ${DATABASE_PATH}`);
 });
 

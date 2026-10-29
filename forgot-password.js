@@ -9,7 +9,7 @@ form.addEventListener("submit", async (event) => {
   success.hidden = true;
   submit.disabled = true;
   try {
-    const response = await fetch("/api/auth/forgot-password", {
+    const response = await FarNotesApi.fetch("/api/auth/forgot-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: form.elements.email.value.trim() })

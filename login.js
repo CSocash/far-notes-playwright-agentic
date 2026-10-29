@@ -2,8 +2,8 @@ const form = document.querySelector("#login-form");
 const error = document.querySelector("#login-error");
 const submit = form.querySelector("button[type='submit']");
 
-fetch("/api/auth/me").then(async (response) => {
-  if (response.ok && (await response.json()).authenticated) window.location.replace("/");
+FarNotesApi.fetch("/api/auth/me").then(async (response) => {
+  if (response.ok && (await response.json()).authenticated) FarNotesApi.goTo("/");
 }).catch(() => {});
 
 form.addEventListener("submit", async (event) => {
@@ -11,7 +11,7 @@ form.addEventListener("submit", async (event) => {
   error.hidden = true;
   submit.disabled = true;
   try {
-    const response = await fetch("/api/auth/login", {
+    const response = await FarNotesApi.fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -21,7 +21,7 @@ form.addEventListener("submit", async (event) => {
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Sign in failed.");
-    window.location.replace("/");
+    FarNotesApi.goTo("/");
   } catch (requestError) {
     error.textContent = requestError.message;
     error.hidden = false;
