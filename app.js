@@ -1,3 +1,5 @@
+const { sectionNumber, ecfrUrl, referenceFor, normalizeQuery, matchingSubsections, summarize, localDate } = window.FarNotesCore;
+
 let regulations = [];
 let activeFilter = "all";
 let activePart = "91";
@@ -12,45 +14,20 @@ const searchInput = document.querySelector("#search");
 const partSelect = document.querySelector("#part-select");
 
 async function apiRequest(path, options = {}) {
-  const response = await fetch(path, {
+  const response = await FarNotesApi.fetch(path, {
     ...options,
     headers: { "Content-Type": "application/json", ...options.headers }
   });
   const result = await response.json();
   if (response.status === 401 && !path.startsWith("/api/auth/")) {
-    window.location.replace("/login");
+    FarNotesApi.goTo("/login");
   }
   if (!response.ok) throw new Error(result.error || `Request failed (${response.status}).`);
   return result;
 }
 
-function localDate() {
-  const now = new Date();
-  const offset = now.getTimezoneOffset();
-  return new Date(now.getTime() - offset * 60_000).toISOString().slice(0, 10);
-}
-
 function subsectionItems() {
   return regulations.flatMap((regulation) => regulation.subsections);
-}
-
-function ecfrUrl(part, section, code = "") {
-  const url = `https://www.ecfr.gov/current/title-14/part-${part}/section-${section}`;
-  return code ? `${url}#p-${section}(${code})` : `${url}#section-${section}`;
-}
-
-function matchingSubsections(regulation, query) {
-  const regulationMatches = regulation.regulation.toLocaleLowerCase().includes(query);
-  return regulation.subsections.filter((subsection) => {
-    const matchesFilter = activeFilter === "all"
-      || (activeFilter === "covered" ? subsection.covered : !subsection.covered);
-    const sectionNumber = regulation.regulation.match(/^\s*(\d+\.\d+)/)?.[1];
-    const reference = sectionNumber
-      ? `${sectionNumber}${subsection.code ? `(${subsection.code})` : ""}`
-      : regulation.regulation;
-    const text = `${reference} ${subsection.title} ${subsection.notes}`.toLocaleLowerCase();
-    return matchesFilter && (!query || regulationMatches || text.includes(query));
-  });
 }
 
 function makeSectionRow(regulation) {
@@ -61,15 +38,15 @@ function makeSectionRow(regulation) {
 
   const header = document.createElement("div");
   header.className = "section-row-content";
-  const sectionNumber = regulation.regulation.match(/^\s*(\d+\.\d+)/)?.[1];
+  const headingNumber = sectionNumber(regulation.regulation);
   const headingLink = document.createElement("a");
   headingLink.className = "section-heading-link";
   headingLink.textContent = regulation.regulation;
   headingLink.target = "_blank";
   headingLink.rel = "noopener noreferrer";
   headingLink.setAttribute("aria-label", `Open ${regulation.regulation} in the eCFR in a new tab`);
-  if (sectionNumber) {
-    headingLink.href = ecfrUrl(regulation.partId, sectionNumber);
+  if (headingNumber) {
+    headingLink.href = ecfrUrl(regulation.partId, headingNumber);
   } else {
     headingLink.removeAttribute("href");
   }
@@ -79,6 +56,10 @@ function makeSectionRow(regulation) {
   input.value = regulation.regulation;
   input.setAttribute("aria-label", "Regulation section");
   input.hidden = true;
+  let headingBeforeEdit = regulation.regulation;
+  input.addEventListener("focus", () => {
+    headingBeforeEdit = regulation.regulation;
+  });
   input.addEventListener("input", () => {
     regulation.regulation = input.value;
     queueSave(regulation, "regulation");
@@ -88,15 +69,18 @@ function makeSectionRow(regulation) {
     queueSave(regulation, "regulation", true);
     headingLink.textContent = regulation.regulation;
     headingLink.setAttribute("aria-label", `Open ${regulation.regulation} in the eCFR in a new tab`);
-    const updatedSectionNumber = regulation.regulation.match(/^\s*(\d+\.\d+)/)?.[1];
+    const updatedSectionNumber = sectionNumber(regulation.regulation);
     if (updatedSectionNumber) headingLink.href = ecfrUrl(regulation.partId, updatedSectionNumber);
     else headingLink.removeAttribute("href");
+    editButton.setAttribute("aria-label", `Edit section heading ${regulation.regulation}`);
+    input.hidden = true;
     headingLink.hidden = false;
   });
   input.addEventListener("keydown", (event) => {
     if (event.key === "Enter") input.blur();
     if (event.key === "Escape") {
-      input.value = regulation.regulation;
+      regulation.regulation = headingBeforeEdit;
+      input.value = headingBeforeEdit;
       input.blur();
     }
   });
@@ -123,19 +107,17 @@ function makeSectionRow(regulation) {
 function makeSubsectionRow(regulation, subsection) {
   const fragment = rowTemplate.content.cloneNode(true);
   const row = fragment.querySelector("tr");
-  const sectionNumber = regulation.regulation.match(/^\s*(\d+\.\d+)/)?.[1];
+  const headingNumber = sectionNumber(regulation.regulation);
   const reference = row.querySelector(".subsection-reference");
   const title = row.querySelector(".subsection-title");
-  const subsectionReference = sectionNumber
-    ? `${sectionNumber}${subsection.code ? `(${subsection.code})` : ""}`
-    : regulation.regulation;
+  const subsectionReference = referenceFor(regulation.regulation, subsection.code);
   const link = document.createElement("a");
   link.className = "subsection-reference";
   link.textContent = subsectionReference;
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   link.setAttribute("aria-label", `Open ${subsectionReference} in the eCFR in a new tab`);
-  if (sectionNumber) link.href = ecfrUrl(regulation.partId, sectionNumber, subsection.code);
+  if (headingNumber) link.href = ecfrUrl(regulation.partId, headingNumber, subsection.code);
   reference.replaceWith(link);
   title.textContent = subsection.title;
   title.hidden = !subsection.title;
@@ -173,11 +155,11 @@ function makeSubsectionRow(regulation, subsection) {
 }
 
 function render() {
-  const query = searchInput.value.trim().toLocaleLowerCase();
+  const query = normalizeQuery(searchInput.value);
   const visibleRegulations = regulations
     .map((regulation) => ({
       regulation,
-      subsections: matchingSubsections(regulation, query)
+      subsections: matchingSubsections(regulation, query, activeFilter)
     }))
     .filter((group) => group.subsections.length > 0);
 
@@ -203,11 +185,7 @@ function updateVisibleCount(visibleCount) {
 }
 
 function updateSummary() {
-  const subsections = subsectionItems();
-  const covered = subsections.filter((item) => item.covered).length;
-  const total = subsections.length;
-  const remaining = total - covered;
-  const progress = total === 0 ? 0 : Math.round(covered / total * 100);
+  const { total, covered, remaining, progress } = summarize(subsectionItems());
   document.querySelector("#total-count").textContent = total;
   document.querySelector("#covered-count").textContent = covered;
   document.querySelector("#remaining-count").textContent = remaining;
@@ -295,7 +273,7 @@ document.querySelector("#add-regulation").addEventListener("click", addRegulatio
 document.querySelector("#logout").addEventListener("click", async () => {
   try {
     await apiRequest("/api/auth/logout", { method: "POST" });
-    window.location.replace("/login");
+    FarNotesApi.goTo("/login");
   } catch (error) {
     console.error("Unable to sign out.", error);
     showToast(`Could not sign out: ${error.message}`);
@@ -372,7 +350,7 @@ async function loadPart(partId) {
 apiRequest("/api/auth/me")
   .then((user) => {
     if (!user.authenticated) {
-      window.location.replace("/login");
+      FarNotesApi.goTo("/login");
       return;
     }
     document.querySelector("#current-user").textContent = user.username;
@@ -380,5 +358,5 @@ apiRequest("/api/auth/me")
   })
   .catch((error) => {
     console.error("Unable to verify the signed-in account.", error);
-    window.location.replace("/login");
+    FarNotesApi.goTo("/login");
   });

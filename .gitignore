@@ -1,3 +1,10 @@
 data/*.sqlite
 data/*.sqlite-shm
 data/*.sqlite-wal
+
+test-results/
+.test-data/
+.venv/
+__pycache__/
+.pytest_cache/
+data/backups/

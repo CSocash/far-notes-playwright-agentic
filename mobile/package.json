@@ -1,0 +1,20 @@
+{
+  "name": "far-notes-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "iOS and Android apps for the FAA Regulations Study Log, built with Capacitor from the website's pages.",
+  "scripts": {
+    "build": "node scripts/build-www.js",
+    "sync": "npm run build && cap sync",
+    "ios": "npm run sync && cap open ios",
+    "android": "npm run sync && cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/core": "8.6.0",
+    "@capacitor/ios": "8.6.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.0"
+  }
+}
