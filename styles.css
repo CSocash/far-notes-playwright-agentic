@@ -14,7 +14,9 @@
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--canvas); color: var(--ink); }
+/* viewport-fit=cover lets the page fill the whole screen in the iOS/Android app and on notched phones;
+   the safe-area padding keeps content clear of the status bar, notch and home indicator (0 on desktops). */
+body { margin: 0; padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); background: var(--canvas); color: var(--ink); }
 button, input, textarea { font: inherit; }
 button { color: inherit; }
 .app-shell { width: min(1240px, calc(100% - 64px)); margin: 0 auto; }

@@ -1,5 +1,7 @@
-"""Text field sizes on touch screens versus desktop. iOS zooms into a focused field whose text is
-under 16px, which leaves the page cut off on the right (seen in the iOS app on 2026-10-30)."""
+"""Phone layout: text field sizes on touch screens versus desktop, and the iPhone safe area.
+iOS zooms into a focused field whose text is under 16px, which leaves the page cut off on the right,
+and the app's pages are drawn under the status bar unless they pad for the safe area
+(both seen in the iOS app on 2026-10-30)."""
 
 import pytest
 from playwright.sync_api import expect
@@ -73,3 +75,36 @@ def test_tc_522_desktop_keeps_the_compact_field_sizes(page):
         "date": "10px",
         "notes": "10px",
     }
+
+
+IPHONE_SAFE_AREA = {"top": 62, "bottom": 34}   # status bar and home indicator, iPhone 17 portrait
+
+
+def _top(locator):
+    return locator.bounding_box()["y"]
+
+
+def test_tc_523_pages_stay_clear_of_the_iphone_status_bar(iphone_page, page):
+    phone = iphone_page
+    phone.context.new_cdp_session(phone).send("Emulation.setSafeAreaInsetsOverride", {"insets": IPHONE_SAFE_AREA})
+
+    serve_auth_pages_from_disk(phone)
+    mock_signed_out(phone)
+    phone.goto("/login")
+    padding = phone.evaluate("(({ paddingTop, paddingBottom }) => [paddingTop, paddingBottom])(getComputedStyle(document.body))")
+    assert padding == ["62px", "34px"]
+    assert _top(phone.get_by_role("link", name="FAA Regulations Study Log sign in")) >= IPHONE_SAFE_AREA["top"]
+
+    _open_tracker(phone)
+    for control in [
+        phone.get_by_role("link", name="Part 91 Study Log home"),
+        phone.get_by_role("combobox", name="Select regulation part"),
+        phone.get_by_role("button", name="Log out"),
+    ]:
+        assert _top(control) >= IPHONE_SAFE_AREA["top"]
+
+    # Desktop has no safe area, so the padding is 0 and the layout is unchanged.
+    serve_auth_pages_from_disk(page)
+    mock_signed_out(page)
+    page.goto("/login")
+    assert page.evaluate("getComputedStyle(document.body).padding") == "0px"

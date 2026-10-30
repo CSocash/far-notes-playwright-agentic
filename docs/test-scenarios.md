@@ -2380,6 +2380,22 @@ Generated with the `create-scenarios` skill from the `far-notes-domain` skill (`
 **Business Rule**: styles.css › the touch rule must not change the desktop layout
 **Suggested Layer**: Component
 
+### TC-523: Pages stay clear of the iPhone status bar
+**Category**: UI State
+**Priority**: P1
+**Preconditions**: iPhone emulation with a safe area of 62px at the top and 34px at the bottom (status bar and home indicator), as in the iOS app. The tracker's API is stubbed.
+**Steps**:
+1. Open the login page.
+2. Open the tracker.
+
+**Expected Results**:
+- The body's padding is 62px at the top and 34px at the bottom.
+- The login page's logo, and the tracker's logo, part menu and Log out button, all start at least 62px from the top of the page.
+- On a desktop (no safe area), the body padding is 0.
+
+**Business Rule**: styles.css › safe-area padding with `viewport-fit=cover`; found while running the iOS app on 2026-10-30
+**Suggested Layer**: Component
+
 ---
 
 ## Coverage summary
@@ -2391,8 +2407,8 @@ Generated with the `create-scenarios` skill from the `far-notes-domain` skill (`
 | Security (TC-200+) | 16 | 12 | 3 | 3 | 34 |
 | Negative (TC-300+) | 0 | 7 | 13 | 8 | 28 |
 | Edge Case (TC-400+) | 0 | 4 | 12 | 15 | 31 |
-| UI State (TC-500+) | 0 | 1 | 8 | 14 | 23 |
-| **Total** | **23** | **50** | **54** | **43** | **170** |
+| UI State (TC-500+) | 0 | 2 | 8 | 14 | 24 |
+| **Total** | **23** | **51** | **54** | **43** | **171** |
 
 10 scenarios are marked **[Manual/Setup-heavy]**.
 
