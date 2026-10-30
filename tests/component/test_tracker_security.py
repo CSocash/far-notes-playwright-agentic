@@ -44,10 +44,11 @@ def test_tc_211_html_in_a_heading_is_shown_as_text(page, dialogs):
 
 
 @pytest.mark.smoke
-def test_tc_212_html_in_notes_is_shown_as_text(page, dialogs):
+def test_tc_212_html_in_notes_is_shown_as_text(page, tracker_page, dialogs):
     open_tracker(page, [preflight(notes=NOTE_PAYLOAD)])
     page.reload()
     expect(page.get_by_text("Connected to SQLite")).to_be_visible()
+    tracker_page.section("91.103 — Preflight action").expand()
     notes = page.get_by_label("Notes for 91.103(a)")
 
     expect(notes).to_have_value(NOTE_PAYLOAD)

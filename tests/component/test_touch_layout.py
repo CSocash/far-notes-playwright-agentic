@@ -32,12 +32,14 @@ def iphone_page(browser, playwright, base_url):
     context.close()
 
 
-def _open_tracker(page):
+def _open_tracker(page, expand=True):
     serve_tracker_from_disk(page)
     mock_signed_in(page)
     mock_regulations(page, {"91": [preflight(), custom_section()]})
     page.goto("/")
     page.get_by_text("Connected to SQLite").wait_for()
+    if expand:
+        TrackerPage(page).expand_all.click()   # sections start collapsed
 
 
 def _font_size(page, selector):
@@ -98,7 +100,7 @@ def test_tc_523_pages_stay_clear_of_the_iphone_status_bar(iphone_page, page):
     assert padding == ["62px", "34px"]
     assert _top(phone.get_by_role("link", name="FAA Regulations Study Log sign in")) >= IPHONE_SAFE_AREA["top"]
 
-    _open_tracker(phone)
+    _open_tracker(phone, expand=False)
     for control in [
         phone.get_by_role("link", name="Part 91 Study Log home"),
         phone.get_by_role("combobox", name="Select regulation part"),
@@ -158,6 +160,7 @@ def test_tc_525_scrolled_content_never_shows_behind_the_status_bar_or_home_indic
     phone.route(re.compile(r"/api/subsections/\d+\?part="), lambda route: route.fulfill(status=500, json={"error": "Disk full"}))
     phone.goto("/")
     phone.get_by_text("Connected to SQLite").wait_for()
+    TrackerPage(phone).expand_all.click()
 
     phone.locator("tr").nth(20).scroll_into_view_if_needed()   # the list now runs under both edges of the screen
     height = phone.viewport_size["height"]

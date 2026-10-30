@@ -5,6 +5,10 @@ let activeFilter = "all";
 let activePart = "91";
 let loadSequence = 0;
 let toastTimer;
+// Sections start collapsed. expandedSections holds the ids the user opened. While a search is active,
+// sections with matches open automatically, and searchCollapsed holds the ones closed during that search.
+let expandedSections = new Set();
+let searchCollapsed = new Set();
 const saveTimers = new Map();
 const saveQueues = new Map();
 
@@ -30,16 +34,23 @@ function subsectionItems() {
   return regulations.flatMap((regulation) => regulation.subsections);
 }
 
-function makeSectionRow(regulation) {
+function makeSectionRow(regulation, expanded) {
   const row = document.createElement("tr");
   row.className = "section-row";
   row.setAttribute("role", "row");
+  row.dataset.sectionId = regulation.id;
   const cell = document.createElement("td");
   cell.setAttribute("role", "cell");
   cell.colSpan = 4;
 
   const header = document.createElement("div");
   header.className = "section-row-content";
+  const toggle = document.createElement("button");
+  toggle.className = "section-toggle";
+  toggle.type = "button";
+  toggle.setAttribute("aria-expanded", String(expanded));
+  toggle.setAttribute("aria-label", `Study items in ${regulation.regulation}`);
+  toggle.addEventListener("click", () => toggleSection(regulation));
   const headingNumber = sectionNumber(regulation.regulation);
   const headingLink = document.createElement("a");
   headingLink.className = "section-heading-link";
@@ -75,6 +86,7 @@ function makeSectionRow(regulation) {
     if (updatedSectionNumber) headingLink.href = ecfrUrl(regulation.partId, updatedSectionNumber);
     else headingLink.removeAttribute("href");
     editButton.setAttribute("aria-label", `Edit section heading ${regulation.regulation}`);
+    toggle.setAttribute("aria-label", `Study items in ${regulation.regulation}`);
     input.hidden = true;
     headingLink.hidden = false;
   });
@@ -100,7 +112,11 @@ function makeSectionRow(regulation) {
     input.select();
   });
 
-  header.append(headingLink, input, editButton);
+  const progress = document.createElement("span");
+  progress.className = "section-progress";
+  renderSectionProgress(progress, regulation);
+
+  header.append(toggle, headingLink, input, editButton, progress);
   cell.append(header);
   row.append(cell);
   return row;
@@ -138,6 +154,7 @@ function makeSubsectionRow(regulation, subsection) {
     coveredLabel.textContent = subsection.covered ? "Yes" : "No";
     queueSave(subsection, "subsection", true);
     updateSummary();
+    updateSectionProgress(regulation);
     if (activeFilter !== "all") render();
   });
   dateInput.value = subsection.date;
@@ -156,6 +173,39 @@ function makeSubsectionRow(regulation, subsection) {
   return fragment;
 }
 
+function renderSectionProgress(element, regulation) {
+  const { total, covered } = summarize(regulation.subsections);
+  const label = document.createElement("span");
+  label.className = "sr-only";
+  label.textContent = " covered";
+  element.replaceChildren(`${covered}/${total}`, label);
+}
+
+function updateSectionProgress(regulation) {
+  const element = rows.querySelector(`[data-section-id="${regulation.id}"] .section-progress`);
+  if (element) renderSectionProgress(element, regulation);
+}
+
+function isExpanded(regulation, query) {
+  return query ? !searchCollapsed.has(regulation.id) : expandedSections.has(regulation.id);
+}
+
+function toggleSection(regulation) {
+  // During a search, searchCollapsed records closed sections; otherwise expandedSections records open ones.
+  const sections = normalizeQuery(searchInput.value) ? searchCollapsed : expandedSections;
+  if (sections.has(regulation.id)) sections.delete(regulation.id);
+  else sections.add(regulation.id);
+  render();
+  rows.querySelector(`[data-section-id="${regulation.id}"] .section-toggle`)?.focus();
+}
+
+function setAllSections(expand) {
+  const ids = regulations.map((regulation) => regulation.id);
+  if (normalizeQuery(searchInput.value)) searchCollapsed = new Set(expand ? [] : ids);
+  else expandedSections = new Set(expand ? ids : []);
+  render();
+}
+
 function render() {
   const query = normalizeQuery(searchInput.value);
   const visibleRegulations = regulations
@@ -168,9 +218,10 @@ function render() {
   rows.replaceChildren();
   let visibleCount = 0;
   for (const group of visibleRegulations) {
-    rows.append(makeSectionRow(group.regulation));
+    const expanded = isExpanded(group.regulation, query);
+    rows.append(makeSectionRow(group.regulation, expanded));
     for (const subsection of group.subsections) {
-      rows.append(makeSubsectionRow(group.regulation, subsection));
+      if (expanded) rows.append(makeSubsectionRow(group.regulation, subsection));
       visibleCount += 1;
     }
   }
@@ -249,6 +300,7 @@ async function addRegulation() {
     });
     regulation.partId = activePart;
     regulations.push(regulation);
+    expandedSections.add(regulation.id);
     activeFilter = "all";
     document.querySelectorAll(".filter-button").forEach((button) => {
       button.classList.toggle("is-active", button.dataset.filter === activeFilter);
@@ -290,7 +342,12 @@ partSelect.addEventListener("change", () => {
   loadPart(partSelect.value);
 });
 
-searchInput.addEventListener("input", render);
+searchInput.addEventListener("input", () => {
+  searchCollapsed = new Set();
+  render();
+});
+document.querySelector("#expand-all").addEventListener("click", () => setAllSections(true));
+document.querySelector("#collapse-all").addEventListener("click", () => setAllSections(false));
 document.querySelectorAll(".filter-button").forEach((button) => {
   button.addEventListener("click", () => {
     activeFilter = button.dataset.filter;
@@ -316,6 +373,8 @@ async function loadPart(partId) {
   const sequence = ++loadSequence;
   activePart = partId;
   regulations = [];
+  expandedSections = new Set();
+  searchCollapsed = new Set();
   document.querySelector("#brand-part").textContent = `PART ${partId}`;
   document.querySelector(".brand").setAttribute("aria-label", `Part ${partId} Study Log home`);
   document.querySelector("#intro-copy").textContent =

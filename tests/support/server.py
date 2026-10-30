@@ -22,10 +22,12 @@ def is_up(base_url):
 
 
 class ServerProcess:
-    def __init__(self, port, db_path, rate_limit_disabled):
+    def __init__(self, port, db_path, rate_limit_disabled, fresh_db=False):
         self.port = port
         self.base_url = f"http://127.0.0.1:{port}"
         self.db_path = Path(db_path)
+        if fresh_db:
+            self._remove_db()
         env = {
             **os.environ,
             "PORT": str(port),
@@ -55,5 +57,8 @@ class ServerProcess:
         except subprocess.TimeoutExpired:
             self.process.kill()
         if remove_db:
-            for suffix in ("", "-wal", "-shm"):
-                Path(f"{self.db_path}{suffix}").unlink(missing_ok=True)
+            self._remove_db()
+
+    def _remove_db(self):
+        for suffix in ("", "-wal", "-shm"):
+            Path(f"{self.db_path}{suffix}").unlink(missing_ok=True)
