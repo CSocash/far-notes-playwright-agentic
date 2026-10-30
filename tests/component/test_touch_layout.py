@@ -46,6 +46,7 @@ def _font_size(page, selector):
     return page.locator(selector).first.evaluate("element => getComputedStyle(element).fontSize")
 
 
+@pytest.mark.mobile("ios")
 def test_tc_521_touch_screens_get_16px_text_fields(iphone_page):
     page = iphone_page
     assert page.evaluate("matchMedia('(pointer: coarse)').matches") is True   # control: the rule's condition holds
@@ -89,6 +90,7 @@ def _top(locator):
     return locator.bounding_box()["y"]
 
 
+@pytest.mark.mobile("ios")
 def test_tc_523_pages_stay_clear_of_the_iphone_status_bar(iphone_page, page):
     phone = iphone_page
     phone.context.new_cdp_session(phone).send("Emulation.setSafeAreaInsetsOverride", {"insets": IPHONE_SAFE_AREA})
@@ -119,6 +121,7 @@ def _box(locator):
     return locator.bounding_box()
 
 
+@pytest.mark.mobile("ios")
 def test_tc_524_on_a_phone_each_study_item_is_a_card_that_fits_the_screen(iphone_page, page):
     phone = iphone_page
     _open_tracker(phone)
@@ -150,6 +153,7 @@ COVERED_BY = """([y]) => [40, 200, 360].map((x) => {
 })"""
 
 
+@pytest.mark.mobile("ios")
 def test_tc_525_scrolled_content_never_shows_behind_the_status_bar_or_home_indicator(iphone_page, page):
     phone = iphone_page
     phone.context.new_cdp_session(phone).send("Emulation.setSafeAreaInsetsOverride", {"insets": IPHONE_SAFE_AREA})

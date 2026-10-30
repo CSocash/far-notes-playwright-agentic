@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import allure
 import pytest
 
 from tests.pages.create_account_page import CreateAccountPage
@@ -10,6 +11,8 @@ from tests.support.server import TEST_DATA, ServerProcess, is_up
 from tests.support.users import register_user, sign_in
 
 LAYER_MARKERS = ("api", "component", "e2e")
+LAYER_NAMES = {"api": "API", "component": "Component", "e2e": "E2E"}
+PLATFORM_NAMES = {"ios": "iOS", "android": "Android", None: "Both platforms"}
 TEST_DB_PATH = TEST_DATA / "far-notes-test.sqlite"
 
 
@@ -20,6 +23,24 @@ def pytest_collection_modifyitems(items):
         for layer in LAYER_MARKERS:
             if layer in parts:
                 item.add_marker(layer)
+
+
+@pytest.fixture(autouse=True)
+def report_groups(request):
+    """Groups the Allure report as Web › layer › area, or Mobile › iOS / Android / Both platforms › layer.
+    A test is mobile when it has the mobile marker; no effect when pytest runs without --alluredir."""
+    node = request.node
+    layer = next((LAYER_NAMES[m] for m in LAYER_NAMES if node.get_closest_marker(m)), "Other")
+    mobile = node.get_closest_marker("mobile")
+    if mobile:
+        platform = mobile.args[0] if mobile.args else None
+        allure.dynamic.parent_suite("Mobile")
+        allure.dynamic.suite(PLATFORM_NAMES[platform])
+        allure.dynamic.sub_suite(layer)
+    else:
+        allure.dynamic.parent_suite("Web")
+        allure.dynamic.suite(layer)
+        allure.dynamic.sub_suite(node.module.__name__.rsplit(".", 1)[-1].removeprefix("test_").replace("_", " ").capitalize())
 
 
 @pytest.fixture(scope="session", autouse=True)
