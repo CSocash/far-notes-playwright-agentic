@@ -3,10 +3,13 @@ Capacitor app. The API is stubbed under a /backend prefix, which proves requests
 
 import re
 
+import pytest
 from playwright.sync_api import expect
 
 from tests.mocks.data import preflight
 from tests.mocks.routes import serve_auth_pages_from_disk, serve_tracker_from_disk
+
+pytestmark = pytest.mark.mobile()   # the same bundled pages run in both apps
 
 TOKEN = "ab" * 32
 

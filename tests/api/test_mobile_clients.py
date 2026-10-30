@@ -49,6 +49,7 @@ def _subsection(context, headers, reference):
     return find_subsection(res.json(), reference)
 
 
+@pytest.mark.mobile("ios")
 def test_tc_020_the_app_signs_in_with_a_bearer_token(request_context, bare_context, fresh_user):
     res = request_context.post(
         "/api/auth/login",
@@ -74,6 +75,7 @@ def test_tc_227_a_website_login_never_returns_the_session_token(request_context,
 
 
 @pytest.mark.smoke
+@pytest.mark.mobile("ios")
 def test_tc_228_requests_from_an_app_origin_ignore_the_session_cookie(api):
     before = find_subsection(get_sections(api, "91"), "91.103(a)")
     app_origin_cookie_only = {"Origin": IOS_ORIGIN}
@@ -90,7 +92,10 @@ def test_tc_228_requests_from_an_app_origin_ignore_the_session_cookie(api):
 
 
 @pytest.mark.smoke
-@pytest.mark.parametrize("origin", [IOS_ORIGIN, ANDROID_ORIGIN])
+@pytest.mark.parametrize("origin", [
+    pytest.param(IOS_ORIGIN, marks=pytest.mark.mobile("ios")),
+    pytest.param(ANDROID_ORIGIN, marks=pytest.mark.mobile("android")),
+])
 def test_tc_229_cors_preflight_is_granted_to_app_origins(bare_context, origin):
     res = bare_context.fetch("/api/regulations?part=91", method="OPTIONS", headers={"Origin": origin})
     assert res.status == 204
@@ -101,6 +106,7 @@ def test_tc_229_cors_preflight_is_granted_to_app_origins(bare_context, origin):
 
 
 @pytest.mark.smoke
+@pytest.mark.mobile()
 def test_tc_229_cors_is_not_granted_to_other_origins(bare_context):
     preflight = bare_context.fetch("/api/regulations?part=91", method="OPTIONS", headers={"Origin": EVIL_ORIGIN})
     assert preflight.status == 403
@@ -111,6 +117,7 @@ def test_tc_229_cors_is_not_granted_to_other_origins(bare_context):
     assert "access-control-allow-origin" not in me.headers
 
 
+@pytest.mark.mobile("ios")
 def test_tc_230_the_app_can_write_with_a_bearer_token_but_other_origins_cannot(bare_context, app_token):
     item = _subsection(bare_context, app_headers(app_token), "91.103(a)")
     url = f"/api/subsections/{item['id']}?part=91"
@@ -126,6 +133,7 @@ def test_tc_230_the_app_can_write_with_a_bearer_token_but_other_origins_cannot(b
     assert _subsection(bare_context, app_headers(app_token), "91.103(a)")["notes"] == "from the app"
 
 
+@pytest.mark.mobile("ios")
 def test_tc_231_logging_out_with_a_bearer_token_revokes_it(bare_context, app_token):
     # Control: the token works before logout.
     assert bare_context.get("/api/regulations?part=91", headers=app_headers(app_token)).status == 200
@@ -139,6 +147,7 @@ def test_tc_231_logging_out_with_a_bearer_token_revokes_it(bare_context, app_tok
     assert after.json() == SIGN_IN_REQUIRED
 
 
+@pytest.mark.mobile("ios")
 @pytest.mark.parametrize("token", ["abc", secrets.token_hex(32)], ids=["malformed", "unknown"])
 def test_tc_232_malformed_or_unknown_bearer_tokens_are_rejected(bare_context, token):
     res = bare_context.get("/api/regulations?part=91", headers=app_headers(token))
