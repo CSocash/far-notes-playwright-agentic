@@ -3,10 +3,13 @@ iOS zooms into a focused field whose text is under 16px, which leaves the page c
 and the app's pages are drawn under the status bar unless they pad for the safe area
 (both seen in the iOS app on 2026-10-30)."""
 
+import re
+
 import pytest
 from playwright.sync_api import expect
 
-from tests.mocks.data import custom_section, preflight
+from tests.mocks.data import custom_section, many_items, preflight
+from tests.pages.tracker_page import TrackerPage
 from tests.mocks.routes import mock_regulations, mock_signed_in, mock_signed_out, serve_auth_pages_from_disk, serve_tracker_from_disk
 
 AUTH_PAGES = ["/login", "/create-account", "/forgot-password", "/reset-password"]
@@ -108,3 +111,70 @@ def test_tc_523_pages_stay_clear_of_the_iphone_status_bar(iphone_page, page):
     mock_signed_out(page)
     page.goto("/login")
     assert page.evaluate("getComputedStyle(document.body).padding") == "0px"
+
+
+def _box(locator):
+    return locator.bounding_box()
+
+
+def test_tc_524_on_a_phone_each_study_item_is_a_card_that_fits_the_screen(iphone_page, page):
+    phone = iphone_page
+    _open_tracker(phone)
+    item = TrackerPage(phone).item("91.103(a)")
+    reference = phone.get_by_role("link", name="Open 91.103(a) in the eCFR in a new tab")
+
+    assert phone.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    expect(item.row).to_have_count(1)   # still a table row for screen readers and locators
+
+    row, ref, covered, date, notes = (_box(x) for x in (item.row, reference, item.covered_label, item.date, item.notes))
+    screen_width = phone.viewport_size["width"]
+    for field in (covered, date, notes):
+        assert field["x"] >= 0 and field["x"] + field["width"] <= screen_width
+    assert ref["y"] < covered["y"] < notes["y"]                  # reference, then covered/date, then notes
+    assert abs((covered["y"] + covered["height"] / 2) - (date["y"] + date["height"] / 2)) < 8   # covered and date share a line
+    assert notes["width"] >= row["width"] * 0.8                  # notes span the card
+
+    # Desktop keeps the table: covered, date and notes side by side on one line.
+    _open_tracker(page)
+    desktop = TrackerPage(page).item("91.103(a)")
+    covered, date, notes = (_box(x) for x in (desktop.covered_label, desktop.date, desktop.notes))
+    assert covered["x"] < date["x"] < notes["x"]
+    assert abs(covered["y"] - notes["y"]) < 20
+
+
+COVERED_BY = """([y]) => [40, 200, 360].map((x) => {
+  const element = document.elementFromPoint(x, y);
+  return element === document.body ? "body" : element.tagName.toLowerCase() + "." + element.className;
+})"""
+
+
+def test_tc_525_scrolled_content_never_shows_behind_the_status_bar_or_home_indicator(iphone_page, page):
+    phone = iphone_page
+    phone.context.new_cdp_session(phone).send("Emulation.setSafeAreaInsetsOverride", {"insets": IPHONE_SAFE_AREA})
+    serve_tracker_from_disk(phone)
+    mock_signed_in(phone)
+    mock_regulations(phone, {"91": many_items(40)})
+    # A failed save is the quickest way to show a toast.
+    phone.route(re.compile(r"/api/subsections/\d+\?part="), lambda route: route.fulfill(status=500, json={"error": "Disk full"}))
+    phone.goto("/")
+    phone.get_by_text("Connected to SQLite").wait_for()
+
+    phone.locator("tr").nth(20).scroll_into_view_if_needed()   # the list now runs under both edges of the screen
+    height = phone.viewport_size["height"]
+    # Only the body's safe-area covers are hit near the edges; nothing from the page shows through.
+    assert phone.evaluate(COVERED_BY, [30]) == ["body"] * 3
+    assert phone.evaluate(COVERED_BY, [height - 15]) == ["body"] * 3
+
+    phone.get_by_role("checkbox").nth(20).check(force=True)    # the input is visually hidden behind its checkmark
+    toast = phone.get_by_role("status")
+    expect(toast).to_have_text("Could not save study item: Disk full")
+    expect(toast).to_have_css("opacity", "1")
+    box = toast.bounding_box()
+    assert box["y"] + box["height"] <= height - IPHONE_SAFE_AREA["bottom"]
+
+    # Desktop: the covers have no height, so nothing is hidden.
+    serve_auth_pages_from_disk(page)
+    mock_signed_out(page)
+    page.goto("/login")
+    covers = page.evaluate("['::before', '::after'].map((pseudo) => getComputedStyle(document.body, pseudo).height)")
+    assert covers == ["0px", "0px"]

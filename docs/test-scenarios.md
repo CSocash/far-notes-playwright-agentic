@@ -2396,6 +2396,41 @@ Generated with the `create-scenarios` skill from the `far-notes-domain` skill (`
 **Business Rule**: styles.css › safe-area padding with `viewport-fit=cover`; found while running the iOS app on 2026-10-30
 **Suggested Layer**: Component
 
+### TC-524: On a phone, each study item is a card that fits the screen
+**Category**: UI State
+**Priority**: P1
+**Preconditions**: iPhone emulation (narrower than 700px). The tracker's API is stubbed with 91.103 and its subsections.
+**Steps**:
+1. Open the tracker.
+2. Look at 91.103(a).
+
+**Expected Results**:
+- The page is no wider than the screen, so nothing needs sideways scrolling.
+- 91.103(a)'s reference is on top, then its Covered checkbox and date on one line, then its notes box across the card's full width.
+- The covered control, date and notes all sit inside the screen.
+- The row is still exposed as a table row (role `row`), so screen readers and row-based locators keep working.
+- On a desktop, the covered control, date and notes stay side by side in one table row.
+
+**Business Rule**: styles.css › phone card layout below 700px; requested after the date and notes were cut off in the iOS app on 2026-10-30
+**Suggested Layer**: Component
+
+### TC-525: Scrolled content never shows behind the status bar or home indicator
+**Category**: UI State
+**Priority**: P1
+**Preconditions**: iPhone emulation with a safe area of 62px at the top and 34px at the bottom. The tracker's API is stubbed with enough items to scroll.
+**Steps**:
+1. Open the tracker.
+2. Scroll down so the study list passes under the top of the screen.
+3. Mark an item covered while the save fails (stubbed 500), so a toast appears.
+
+**Expected Results**:
+- Across the screen's width, the top 62px and the bottom 34px are covered by the page background, not by any text or control.
+- The toast appears above the bottom safe area, not under the home indicator.
+- On a desktop, the covers are 0px tall.
+
+**Business Rule**: styles.css › fixed safe-area covers (`body::before`, `body::after`); requested after scrolled text showed behind the iPhone status bar on 2026-10-30
+**Suggested Layer**: Component
+
 ---
 
 ## Coverage summary
@@ -2407,8 +2442,8 @@ Generated with the `create-scenarios` skill from the `far-notes-domain` skill (`
 | Security (TC-200+) | 16 | 12 | 3 | 3 | 34 |
 | Negative (TC-300+) | 0 | 7 | 13 | 8 | 28 |
 | Edge Case (TC-400+) | 0 | 4 | 12 | 15 | 31 |
-| UI State (TC-500+) | 0 | 2 | 8 | 14 | 24 |
-| **Total** | **23** | **51** | **54** | **43** | **171** |
+| UI State (TC-500+) | 0 | 4 | 8 | 14 | 26 |
+| **Total** | **23** | **53** | **54** | **43** | **173** |
 
 10 scenarios are marked **[Manual/Setup-heavy]**.
 

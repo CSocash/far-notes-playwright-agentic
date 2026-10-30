@@ -17,6 +17,10 @@
 /* viewport-fit=cover lets the page fill the whole screen in the iOS/Android app and on notched phones;
    the safe-area padding keeps content clear of the status bar, notch and home indicator (0 on desktops). */
 body { margin: 0; padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); background: var(--canvas); color: var(--ink); }
+/* Solid bars over the status bar and home indicator, so scrolled content never shows behind them (0px tall on desktops). */
+body::before, body::after { content: ""; position: fixed; left: 0; right: 0; z-index: 3; background: var(--canvas); }
+body::before { top: 0; height: env(safe-area-inset-top, 0px); }
+body::after { bottom: 0; height: env(safe-area-inset-bottom, 0px); }
 button, input, textarea { font: inherit; }
 button { color: inherit; }
 .app-shell { width: min(1240px, calc(100% - 64px)); margin: 0 auto; }
@@ -121,7 +125,7 @@ td { height: 53px; padding: 7px 8px; }
 .footer-note { font-size: 9px; }
 .page-footer { display: flex; justify-content: space-between; gap: 20px; padding: 24px 1px 34px; color: #8a958e; font-size: 9px; }
 .page-footer span:first-child { font-size: 8px; font-weight: 700; letter-spacing: .12em; }
-.toast { position: fixed; right: 24px; bottom: 24px; z-index: 2; padding: 11px 15px; color: white; background: #263f30; border-radius: 5px; box-shadow: 0 5px 20px #18251f25; font-size: 11px; opacity: 0; transform: translateY(8px); pointer-events: none; transition: .2s; }
+.toast { position: fixed; right: 24px; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 4; padding: 11px 15px; color: white; background: #263f30; border-radius: 5px; box-shadow: 0 5px 20px #18251f25; font-size: 11px; opacity: 0; transform: translateY(8px); pointer-events: none; transition: .2s; }
 .toast.is-visible { opacity: 1; transform: translateY(0); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
@@ -169,6 +173,30 @@ td { height: 53px; padding: 7px 8px; }
   .filter-button { padding: 7px 6px; font-size: 9px; }
   .add-button { padding: 9px 10px; }
   .page-footer { flex-direction: column; gap: 8px; padding-bottom: 24px; }
+}
+
+/* Phones: each study item becomes a card (reference and title, then Covered and Date, then Notes)
+   instead of a 740px table that scrolls sideways. The column headings stay for screen readers only. */
+@media (max-width: 700px) {
+  .table-wrap { overflow-x: visible; }
+  table { min-width: 0; }
+  thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+  tbody, tbody tr, tbody td { display: block; }
+  tbody td { height: auto; }
+  tbody tr:has(> .subsection-cell) {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas: "item item" "covered date" "notes notes";
+    align-items: center;
+    gap: 6px 16px;
+    padding: 12px 14px;
+  }
+  tbody tr:has(> .subsection-cell) > td { padding: 0; }
+  .subsection-cell { grid-area: item; padding-bottom: 2px; }
+  .covered-cell { grid-area: covered; }
+  .date-cell { grid-area: date; }
+  .notes-cell { grid-area: notes; }
+  .subsection-title { font-size: 11px; }
 }
 
 @media (max-width: 520px) {

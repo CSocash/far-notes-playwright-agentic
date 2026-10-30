@@ -82,16 +82,17 @@
         </div>
 
         <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col" class="regulation-col">SECTION / SUBSECTION</th>
-                <th scope="col" class="covered-col">COVERED</th>
-                <th scope="col" class="date-col">DATE COVERED</th>
-                <th scope="col" class="notes-col">NOTES</th>
+          <!-- Explicit table roles: the phone layout restyles rows as cards, and Safari drops table semantics when display changes. -->
+          <table role="table">
+            <thead role="rowgroup">
+              <tr role="row">
+                <th scope="col" role="columnheader" class="regulation-col">SECTION / SUBSECTION</th>
+                <th scope="col" role="columnheader" class="covered-col">COVERED</th>
+                <th scope="col" role="columnheader" class="date-col">DATE COVERED</th>
+                <th scope="col" role="columnheader" class="notes-col">NOTES</th>
               </tr>
             </thead>
-            <tbody id="regulation-rows"></tbody>
+            <tbody id="regulation-rows" role="rowgroup"></tbody>
           </table>
           <div class="empty-state" id="empty-state" hidden>
             <span class="empty-icon" aria-hidden="true">⌕</span>
@@ -112,20 +113,20 @@
     </main>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <template id="row-template">
-      <tr>
-        <td class="subsection-cell">
+      <tr role="row">
+        <td role="cell" class="subsection-cell">
           <span class="subsection-reference"></span>
           <span class="subsection-title"></span>
         </td>
-        <td class="covered-cell">
+        <td role="cell" class="covered-cell">
           <label class="coverage-control">
             <input class="covered-input" type="checkbox">
             <span class="checkmark" aria-hidden="true"></span>
             <span class="covered-label">No</span>
           </label>
         </td>
-        <td class="date-cell"><input class="date-input" type="date" aria-label="Date covered"></td>
-        <td class="notes-cell"><textarea class="notes-input" rows="1" aria-label="Notes" placeholder="Add a note..."></textarea></td>
+        <td role="cell" class="date-cell"><input class="date-input" type="date" aria-label="Date covered"></td>
+        <td role="cell" class="notes-cell"><textarea class="notes-input" rows="1" aria-label="Notes" placeholder="Add a note..."></textarea></td>
       </tr>
     </template>
   </body>

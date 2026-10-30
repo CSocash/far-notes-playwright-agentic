@@ -33,7 +33,9 @@ function subsectionItems() {
 function makeSectionRow(regulation) {
   const row = document.createElement("tr");
   row.className = "section-row";
+  row.setAttribute("role", "row");
   const cell = document.createElement("td");
+  cell.setAttribute("role", "cell");
   cell.colSpan = 4;
 
   const header = document.createElement("div");

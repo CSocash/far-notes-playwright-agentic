@@ -6,14 +6,14 @@ Source: docs/test-scenarios.md (159 scenarios in scope) · Generated 2026-10-27 
 
 | Layer     | Scenarios | % | P0 | P1 | P2 | P3 |
 |-----------|----------:|--:|---:|---:|---:|---:|
-| Unit      | 24 | 14.0% | 0 | 4 | 12 | 8 |
-| API       | 76 | 44.5% | 18 | 23 | 18 | 17 |
-| Component | 58 | 33.9% | 2 | 15 | 24 | 17 |
-| E2E       | 12 | 7.0% | 3 | 9 | 0 | 0 |
+| Unit      | 24 | 13.9% | 0 | 4 | 12 | 8 |
+| API       | 76 | 43.9% | 18 | 23 | 18 | 17 |
+| Component | 60 | 34.7% | 2 | 17 | 24 | 17 |
+| E2E       | 12 | 6.9% | 3 | 9 | 0 | 0 |
 | Manual    | 1 | 0.6% | 0 | 0 | 0 | 1 |
-| **Total** | **171** | **100%** | **23** | **51** | **54** | **43** |
+| **Total** | **173** | **100%** | **23** | **53** | **54** | **43** |
 
-The result is a proper pyramid: 100 unit and API tests form the base, 58 component tests sit in the middle, and 12 E2E journeys sit on top. E2E is 7.1% of the 170 automated scenarios, which **meets the ≤15% target**. The scenario file suggested E2E for 103 scenarios (65%); this strategy moves 91 of them down a layer.
+The result is a proper pyramid: 100 unit and API tests form the base, 60 component tests sit in the middle, and 12 E2E journeys sit on top. E2E is 7.0% of the 172 automated scenarios, which **meets the ≤15% target**. The scenario file suggested E2E for 103 scenarios (65%); this strategy moves 91 of them down a layer.
 
 Supporting checks add 2 Unit, 9 API, 2 Component. These are extra assertions inside existing tests at another layer, not separate scenarios.
 
@@ -192,6 +192,8 @@ Supporting checks add 2 Unit, 9 API, 2 Component. These are extra assertions ins
 | TC-521 | Touch screens get 16px text fields, so iOS doesn't zoom | P2 | Component → Component | – | 4 | Computed font sizes under iPhone emulation; the zoom itself needs a real device |
 | TC-522 | Desktop keeps the compact field sizes | P3 | Component → Component | – | 4 | Control for TC-521: the touch rule leaves desktop alone |
 | TC-523 | Pages stay clear of the iPhone status bar | P1 | Component → Component | – | 4 | Safe-area insets emulated through CDP (`Emulation.setSafeAreaInsetsOverride`); a real device confirms the look |
+| TC-524 | On a phone, each study item is a card that fits the screen | P1 | Component → Component | – | 4 | Element positions under iPhone emulation, with a desktop control in the same test |
+| TC-525 | Scrolled content never shows behind the status bar or home indicator | P1 | Component → Component | – | 4 | `elementFromPoint` inside the emulated safe area after scrolling, plus the toast's position |
 
 Rows in **bold** override the scenario's Suggested Layer.
 
@@ -199,8 +201,8 @@ Rows in **bold** override the scenario's Suggested Layer.
 
 - **Smoke** (25, runs on every change): every P0, plus one E2E happy path per core flow (sign-in TC-002, study TC-006, sections TC-010, logout TC-015). The P0 E2E sign-up journey TC-001 is included automatically.
   TC-001, TC-002, TC-006, TC-010, TC-015, TC-103, TC-118, TC-126, TC-131, TC-200, TC-201, TC-203, TC-204, TC-206, TC-208, TC-209, TC-210, TC-211, TC-212, TC-213, TC-221, TC-222, TC-227, TC-228, TC-229
-- **Regression** (96): all P1 and P2 scenarios not already in Smoke and not depending on a hook.
-  TC-003, TC-004, TC-005, TC-007, TC-008, TC-009, TC-011, TC-012, TC-013, TC-016, TC-017, TC-018, TC-019, TC-020, TC-021, TC-100, TC-101, TC-102, TC-104, TC-105, TC-106, TC-107, TC-108, TC-109, TC-110, TC-112, TC-113, TC-114, TC-115, TC-116, TC-117, TC-119, TC-121, TC-122, TC-123, TC-124, TC-125, TC-129, TC-130, TC-202, TC-205, TC-207, TC-214, TC-215, TC-223, TC-224, TC-230, TC-231, TC-232, TC-233, TC-300, TC-301, TC-303, TC-304, TC-305, TC-306, TC-307, TC-308, TC-309, TC-310, TC-311, TC-312, TC-313, TC-314, TC-317, TC-322, TC-323, TC-324, TC-325, TC-326, TC-400, TC-401, TC-402, TC-403, TC-406, TC-407, TC-408, TC-410, TC-417, TC-419, TC-420, TC-421, TC-422, TC-423, TC-428, TC-430, TC-503, TC-504, TC-505, TC-509, TC-512, TC-518, TC-519, TC-520, TC-521, TC-523
+- **Regression** (98): all P1 and P2 scenarios not already in Smoke and not depending on a hook.
+  TC-003, TC-004, TC-005, TC-007, TC-008, TC-009, TC-011, TC-012, TC-013, TC-016, TC-017, TC-018, TC-019, TC-020, TC-021, TC-100, TC-101, TC-102, TC-104, TC-105, TC-106, TC-107, TC-108, TC-109, TC-110, TC-112, TC-113, TC-114, TC-115, TC-116, TC-117, TC-119, TC-121, TC-122, TC-123, TC-124, TC-125, TC-129, TC-130, TC-202, TC-205, TC-207, TC-214, TC-215, TC-223, TC-224, TC-230, TC-231, TC-232, TC-233, TC-300, TC-301, TC-303, TC-304, TC-305, TC-306, TC-307, TC-308, TC-309, TC-310, TC-311, TC-312, TC-313, TC-314, TC-317, TC-322, TC-323, TC-324, TC-325, TC-326, TC-400, TC-401, TC-402, TC-403, TC-406, TC-407, TC-408, TC-410, TC-417, TC-419, TC-420, TC-421, TC-422, TC-423, TC-428, TC-430, TC-503, TC-504, TC-505, TC-509, TC-512, TC-518, TC-519, TC-520, TC-521, TC-523, TC-524, TC-525
 - **Extended / Manual** (50): P3 scenarios, plus scenarios that need a hook. The hooked P0 TC-126 also runs in Smoke once its hook exists.
   TC-014, TC-111, TC-120, TC-127, TC-128, TC-132, TC-216, TC-217, TC-218, TC-219, TC-220, TC-225, TC-226, TC-302, TC-315, TC-316, TC-318, TC-319, TC-320, TC-321, TC-327, TC-404, TC-405, TC-409, TC-411, TC-412, TC-413, TC-414, TC-415, TC-416, TC-418, TC-424, TC-425, TC-426, TC-427, TC-429, TC-500, TC-501, TC-502, TC-506, TC-507, TC-508, TC-510, TC-511, TC-513, TC-514, TC-515, TC-516, TC-517, TC-522
   - Hooks:
@@ -299,7 +301,7 @@ tests/component/test_tracker_search_filter.py    TC-012, TC-013, TC-117, TC-430,
 tests/component/test_tracker_sections.py         TC-011, TC-102, TC-106, TC-109, TC-110, TC-112, TC-409, TC-410, TC-509, TC-519, TC-520
 tests/component/test_tracker_security.py         TC-211, TC-212
 tests/component/test_tracker_state.py            TC-500, TC-501, TC-503, TC-510, TC-516, TC-517, TC-518
-tests/component/test_touch_layout.py             TC-521, TC-522, TC-523
+tests/component/test_touch_layout.py             TC-521, TC-522, TC-523, TC-524, TC-525
 tests/component/test_tracker_study_items.py      TC-008, TC-009, TC-101, TC-121, TC-122
 tests/e2e/test_password_reset.py                 TC-014
 tests/e2e/test_sections.py                       TC-010, TC-108, TC-428
