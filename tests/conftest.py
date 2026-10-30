@@ -28,14 +28,16 @@ def test_server(base_url):
 
     Never the dev server on port 3000 or data/part91.sqlite. If something already answers on
     base_url (for example a test server you started yourself), it is reused.
+    Each run starts from an empty database and deletes it afterwards: every test makes its own users,
+    and a database kept across runs grew until the server's start-up checks took longer than 15s.
     """
     if is_up(base_url):
         yield base_url
         return
     port = int(base_url.rsplit(":", 1)[1])
-    server = ServerProcess(port, TEST_DB_PATH, rate_limit_disabled=True)
+    server = ServerProcess(port, TEST_DB_PATH, rate_limit_disabled=True, fresh_db=True)
     yield base_url
-    server.stop()
+    server.stop(remove_db=True)
 
 
 @pytest.fixture

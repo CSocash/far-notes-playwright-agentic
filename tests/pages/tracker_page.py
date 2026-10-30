@@ -9,6 +9,8 @@ class TrackerPage:
         self.part_select = page.get_by_role("combobox", name="Select regulation part")
         self.search = page.get_by_role("searchbox", name="Search regulations or notes")
         self.add_section = page.get_by_role("button", name="Add section")
+        self.expand_all = page.get_by_role("button", name="Expand all")
+        self.collapse_all = page.get_by_role("button", name="Collapse all")
         self.log_out = page.get_by_role("button", name="Log out")
         self.toast = page.get_by_role("status")
         # These elements have no role or accessible name, so ids and classes are the only stable hooks.
@@ -58,6 +60,12 @@ class SectionRow:
         self.heading_link = row.get_by_role("link")       # the only link in a header row; no role when it has no href
         self.edit_button = row.get_by_role("button", name=re.compile(r"^Edit section heading"))
         self.heading_input = row.get_by_role("textbox", name="Regulation section")
+        self.toggle = row.get_by_role("button", name=re.compile(r"^Study items in"))   # aria-expanded holds its state
+
+    def expand(self):
+        """Opens the section (sections start collapsed); does nothing if it is already open."""
+        if self.toggle.get_attribute("aria-expanded") != "true":
+            self.toggle.click()
 
     def rename(self, heading):
         """Edit → type → Enter, the way a user saves a heading."""

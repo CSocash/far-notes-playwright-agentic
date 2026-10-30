@@ -2380,6 +2380,139 @@ Generated with the `create-scenarios` skill from the `far-notes-domain` skill (`
 **Business Rule**: styles.css › the touch rule must not change the desktop layout
 **Suggested Layer**: Component
 
+### TC-523: Pages stay clear of the iPhone status bar
+**Category**: UI State
+**Priority**: P1
+**Preconditions**: iPhone emulation with a safe area of 62px at the top and 34px at the bottom (status bar and home indicator), as in the iOS app. The tracker's API is stubbed.
+**Steps**:
+1. Open the login page.
+2. Open the tracker.
+
+**Expected Results**:
+- The body's padding is 62px at the top and 34px at the bottom.
+- The login page's logo, and the tracker's logo, part menu and Log out button, all start at least 62px from the top of the page.
+- On a desktop (no safe area), the body padding is 0.
+
+**Business Rule**: styles.css › safe-area padding with `viewport-fit=cover`; found while running the iOS app on 2026-10-30
+**Suggested Layer**: Component
+
+### TC-524: On a phone, each study item is a card that fits the screen
+**Category**: UI State
+**Priority**: P1
+**Preconditions**: iPhone emulation (narrower than 700px). The tracker's API is stubbed with 91.103 and its subsections.
+**Steps**:
+1. Open the tracker.
+2. Look at 91.103(a).
+
+**Expected Results**:
+- The page is no wider than the screen, so nothing needs sideways scrolling.
+- 91.103(a)'s reference is on top, then its Covered checkbox and date on one line, then its notes box across the card's full width.
+- The covered control, date and notes all sit inside the screen.
+- The row is still exposed as a table row (role `row`), so screen readers and row-based locators keep working.
+- On a desktop, the covered control, date and notes stay side by side in one table row.
+
+**Business Rule**: styles.css › phone card layout below 700px; requested after the date and notes were cut off in the iOS app on 2026-10-30
+**Suggested Layer**: Component
+
+### TC-525: Scrolled content never shows behind the status bar or home indicator
+**Category**: UI State
+**Priority**: P1
+**Preconditions**: iPhone emulation with a safe area of 62px at the top and 34px at the bottom. The tracker's API is stubbed with enough items to scroll.
+**Steps**:
+1. Open the tracker.
+2. Scroll down so the study list passes under the top of the screen.
+3. Mark an item covered while the save fails (stubbed 500), so a toast appears.
+
+**Expected Results**:
+- Across the screen's width, the top 62px and the bottom 34px are covered by the page background, not by any text or control.
+- The toast appears above the bottom safe area, not under the home indicator.
+- On a desktop, the covers are 0px tall.
+
+**Business Rule**: styles.css › fixed safe-area covers (`body::before`, `body::after`); requested after scrolled text showed behind the iPhone status bar on 2026-10-30
+**Suggested Layer**: Component
+
+### TC-526: Sections start collapsed, with their progress showing
+**Category**: UI State
+**Priority**: P1
+**Preconditions**: The tracker's API is stubbed with 91.103 (two items, (a) covered) and 91.5 (one item).
+**Steps**:
+1. Open the tracker.
+
+**Expected Results**:
+- Both section headers are visible, and each toggle ("Study items in …") has `aria-expanded="false"`.
+- No study item rows are shown.
+- 91.103's header shows "1/2" covered, and 91.5's shows "0/1".
+- The counts are unchanged: "Showing 3 of 3 study items", Covered 1, To go 2.
+
+**Business Rule**: app.js › sections start collapsed (requested 2026-10-30)
+**Suggested Layer**: Component
+
+### TC-527: A section's toggle expands and collapses only that section
+**Category**: UI State
+**Priority**: P1
+**Preconditions**: As TC-526.
+**Steps**:
+1. Click "Study items in 91.103 — Preflight action".
+2. Click it again.
+
+**Expected Results**:
+- After step 1, 91.103(a) and 91.103(b) are visible, the toggle has `aria-expanded="true"` and keeps focus, and 91.5 stays collapsed.
+- After step 2, 91.103's items are hidden again and the toggle has `aria-expanded="false"`.
+
+**Business Rule**: app.js › toggleSection
+**Suggested Layer**: Component
+
+### TC-528: Expand all and Collapse all
+**Category**: UI State
+**Priority**: P2
+**Preconditions**: As TC-526.
+**Steps**:
+1. Click "Expand all".
+2. Click "Collapse all".
+
+**Expected Results**: After step 1 all 3 study items are visible and every toggle has `aria-expanded="true"`. After step 2 none are visible and every toggle has `aria-expanded="false"`.
+**Business Rule**: app.js › setAllSections
+**Suggested Layer**: Component
+
+### TC-529: Searching opens the sections with matches, and clearing restores them
+**Category**: UI State
+**Priority**: P1
+**Preconditions**: As TC-526. Every section is collapsed.
+**Steps**:
+1. Search "runway".
+2. Collapse 91.103 with its toggle.
+3. Clear the search.
+
+**Expected Results**:
+- After step 1, 91.103(b) is visible without clicking anything, and 91.5 is not shown (no matches).
+- After step 2, 91.103's items are hidden, even though the search is still active.
+- After step 3, every section is collapsed again, as before the search.
+
+**Business Rule**: app.js › isExpanded (search opens matching sections)
+**Suggested Layer**: Component
+
+### TC-530: A section's progress updates when an item is marked covered
+**Category**: UI State
+**Priority**: P2
+**Preconditions**: As TC-526, with PATCH answered like the server.
+**Steps**:
+1. Expand 91.103 and mark 91.103(b) covered.
+
+**Expected Results**: 91.103's header changes from "1/2" to "2/2".
+**Business Rule**: app.js › updateSectionProgress
+**Suggested Layer**: Component
+
+### TC-531: A newly added section opens expanded
+**Category**: UI State
+**Priority**: P2
+**Preconditions**: As TC-526, with POST /api/regulations answered with a new unlocked section.
+**Steps**:
+1. Click "+ Add section".
+
+**Expected Results**: The new section's toggle has `aria-expanded="true"` and its "Entire section" item is visible, while 91.103 and 91.5 stay collapsed.
+**Business Rule**: app.js › addRegulation expands the new section
+**Suggested Layer**: Component
+
 ---
 
 ## Coverage summary
@@ -2391,8 +2524,8 @@ Generated with the `create-scenarios` skill from the `far-notes-domain` skill (`
 | Security (TC-200+) | 16 | 12 | 3 | 3 | 34 |
 | Negative (TC-300+) | 0 | 7 | 13 | 8 | 28 |
 | Edge Case (TC-400+) | 0 | 4 | 12 | 15 | 31 |
-| UI State (TC-500+) | 0 | 1 | 8 | 14 | 23 |
-| **Total** | **23** | **50** | **54** | **43** | **170** |
+| UI State (TC-500+) | 0 | 7 | 11 | 14 | 32 |
+| **Total** | **23** | **56** | **57** | **43** | **179** |
 
 10 scenarios are marked **[Manual/Setup-heavy]**.
 

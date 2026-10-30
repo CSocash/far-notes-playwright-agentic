@@ -14,7 +14,13 @@
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--canvas); color: var(--ink); }
+/* viewport-fit=cover lets the page fill the whole screen in the iOS/Android app and on notched phones;
+   the safe-area padding keeps content clear of the status bar, notch and home indicator (0 on desktops). */
+body { margin: 0; padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); background: var(--canvas); color: var(--ink); }
+/* Solid bars over the status bar and home indicator, so scrolled content never shows behind them (0px tall on desktops). */
+body::before, body::after { content: ""; position: fixed; left: 0; right: 0; z-index: 3; background: var(--canvas); }
+body::before { top: 0; height: env(safe-area-inset-top, 0px); }
+body::after { bottom: 0; height: env(safe-area-inset-bottom, 0px); }
 button, input, textarea { font: inherit; }
 button { color: inherit; }
 .app-shell { width: min(1240px, calc(100% - 64px)); margin: 0 auto; }
@@ -93,6 +99,15 @@ td { height: 53px; padding: 7px 8px; }
 .section-heading-link:focus-visible, .subsection-reference:focus-visible { outline: 2px solid #89a894; outline-offset: 2px; border-radius: 2px; }
 .section-row .regulation-input { color: var(--green-dark); font-weight: 700; }
 .section-row-content .regulation-input { flex: 1; }
+.section-toggle { flex: 0 0 auto; width: 28px; height: 28px; margin-left: -8px; display: inline-grid; place-items: center; border: 0; border-radius: 4px; background: transparent; color: var(--green-dark); cursor: pointer; }
+.section-toggle::before { content: ""; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform .15s; }
+.section-toggle[aria-expanded="true"]::before { transform: rotate(45deg); }
+.section-toggle:hover { background: #e8f0e9; }
+.section-toggle:focus-visible { outline: 2px solid #89a894; outline-offset: 1px; }
+.section-progress { margin-left: auto; padding-left: 8px; color: #849087; font-size: 10px; font-weight: 600; white-space: nowrap; }
+.section-controls { display: flex; gap: 3px; }
+.section-control { border: 1px solid #e5eae4; border-radius: 4px; padding: 7px 9px; background: #fff; color: #5f6d64; font-size: 10px; cursor: pointer; }
+.section-control:hover { background: #f4f6f3; }
 .edit-button { border: 0; padding: 5px 7px; border-radius: 4px; background: transparent; color: #829087; font-size: 9px; cursor: pointer; }
 .edit-button:hover { background: #e8f0e9; color: var(--green-dark); }
 .subsection-cell { padding-left: 27px; }
@@ -119,7 +134,7 @@ td { height: 53px; padding: 7px 8px; }
 .footer-note { font-size: 9px; }
 .page-footer { display: flex; justify-content: space-between; gap: 20px; padding: 24px 1px 34px; color: #8a958e; font-size: 9px; }
 .page-footer span:first-child { font-size: 8px; font-weight: 700; letter-spacing: .12em; }
-.toast { position: fixed; right: 24px; bottom: 24px; z-index: 2; padding: 11px 15px; color: white; background: #263f30; border-radius: 5px; box-shadow: 0 5px 20px #18251f25; font-size: 11px; opacity: 0; transform: translateY(8px); pointer-events: none; transition: .2s; }
+.toast { position: fixed; right: 24px; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 4; padding: 11px 15px; color: white; background: #263f30; border-radius: 5px; box-shadow: 0 5px 20px #18251f25; font-size: 11px; opacity: 0; transform: translateY(8px); pointer-events: none; transition: .2s; }
 .toast.is-visible { opacity: 1; transform: translateY(0); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
@@ -163,10 +178,35 @@ td { height: 53px; padding: 7px 8px; }
   .stat:first-child { padding-left: 0; border-left: 0; }
   .toolbar { align-items: stretch; flex-direction: column; padding: 14px 0; }
   .search-wrap { width: 100%; }
-  .toolbar-actions { justify-content: space-between; gap: 5px; }
+  .toolbar-actions { flex-wrap: wrap; justify-content: space-between; gap: 8px 5px; }
+  .section-control { padding: 7px 8px; font-size: 9px; }
   .filter-button { padding: 7px 6px; font-size: 9px; }
   .add-button { padding: 9px 10px; }
   .page-footer { flex-direction: column; gap: 8px; padding-bottom: 24px; }
+}
+
+/* Phones: each study item becomes a card (reference and title, then Covered and Date, then Notes)
+   instead of a 740px table that scrolls sideways. The column headings stay for screen readers only. */
+@media (max-width: 700px) {
+  .table-wrap { overflow-x: visible; }
+  table { min-width: 0; }
+  thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+  tbody, tbody tr, tbody td { display: block; }
+  tbody td { height: auto; }
+  tbody tr:has(> .subsection-cell) {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas: "item item" "covered date" "notes notes";
+    align-items: center;
+    gap: 6px 16px;
+    padding: 12px 14px;
+  }
+  tbody tr:has(> .subsection-cell) > td { padding: 0; }
+  .subsection-cell { grid-area: item; padding-bottom: 2px; }
+  .covered-cell { grid-area: covered; }
+  .date-cell { grid-area: date; }
+  .notes-cell { grid-area: notes; }
+  .subsection-title { font-size: 11px; }
 }
 
 @media (max-width: 520px) {
