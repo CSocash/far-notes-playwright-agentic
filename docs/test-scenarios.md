@@ -2357,6 +2357,29 @@ Generated with the `create-scenarios` skill from the `far-notes-domain` skill (`
 **Business Rule**: business-rules.md › Study tracker: editing headings (accessible names match the visible heading); SKILL.md › Testing notes: accessible names
 **Suggested Layer**: Component
 
+### TC-521: Touch screens get 16px text fields, so iOS doesn't zoom
+**Category**: UI State
+**Priority**: P2
+**Preconditions**: A touch device (iPhone emulation). The tracker's API is stubbed with one unlocked section.
+**Steps**:
+1. Open the login, create-account, forgot-password and reset-password pages.
+2. Open the tracker.
+
+**Expected Results**: Every text field has a computed `font-size` of `16px`: the auth inputs, the part menu, search, the section heading input, the date input and the notes box. iOS zooms into a focused field under 16px and leaves the page cut off on the right.
+**Business Rule**: styles.css › `@media (pointer: coarse)`; found while running the iOS app on 2026-10-30
+**Suggested Layer**: Component
+
+### TC-522: Desktop keeps the compact field sizes
+**Category**: UI State
+**Priority**: P3
+**Preconditions**: A desktop browser (mouse pointer).
+**Steps**:
+1. Open the login page and the tracker.
+
+**Expected Results**: The fields keep their desktop sizes: auth inputs 12px, search and section heading 11px, date and notes 10px.
+**Business Rule**: styles.css › the touch rule must not change the desktop layout
+**Suggested Layer**: Component
+
 ---
 
 ## Coverage summary
@@ -2368,8 +2391,8 @@ Generated with the `create-scenarios` skill from the `far-notes-domain` skill (`
 | Security (TC-200+) | 16 | 12 | 3 | 3 | 34 |
 | Negative (TC-300+) | 0 | 7 | 13 | 8 | 28 |
 | Edge Case (TC-400+) | 0 | 4 | 12 | 15 | 31 |
-| UI State (TC-500+) | 0 | 1 | 7 | 13 | 21 |
-| **Total** | **23** | **50** | **53** | **42** | **168** |
+| UI State (TC-500+) | 0 | 1 | 8 | 14 | 23 |
+| **Total** | **23** | **50** | **54** | **43** | **170** |
 
 10 scenarios are marked **[Manual/Setup-heavy]**.
 

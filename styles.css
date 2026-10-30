@@ -174,6 +174,12 @@ td { height: 53px; padding: 7px 8px; }
   .auth-card { padding: 24px 20px; }
 }
 
+/* iOS zooms into any focused field with text under 16px and leaves the page cut off.
+   Touch screens get 16px fields; mouse-driven desktops keep the compact sizes. */
+@media (pointer: coarse) {
+  .auth-input, .search-wrap input, .part-picker select, .regulation-input, .date-input, .notes-input { font-size: 16px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
