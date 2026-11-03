@@ -1,4 +1,5 @@
 from pathlib import Path
+from urllib.parse import urlparse
 
 import allure
 import pytest
@@ -7,6 +8,7 @@ from tests.pages.create_account_page import CreateAccountPage
 from tests.pages.login_page import LoginPage
 from tests.pages.tracker_page import TrackerPage
 from tests.support.db import ScratchDatabase
+from tests.support.network import block_outside_requests
 from tests.support.server import TEST_DATA, ServerProcess, is_up
 from tests.support.users import register_user, sign_in
 
@@ -14,11 +16,28 @@ LAYER_MARKERS = ("api", "component", "e2e", "device")
 LAYER_NAMES = {"api": "API", "component": "Component", "e2e": "E2E", "device": "Device"}
 PLATFORM_NAMES = {"ios": "iOS", "android": "Android", None: "Both platforms"}
 TEST_DB_PATH = TEST_DATA / "far-notes-test.sqlite"
+DEV_SERVER_PORT = 3000   # npm start: the real data/part91.sqlite
+LOCAL_HOSTS = ("127.0.0.1", "localhost", "::1")
 
 
 def pytest_addoption(parser):
     parser.addoption("--run-device", action="store_true",
                      help="also run tests/device: the iOS app in the Simulator through Appium (needs Xcode and Appium)")
+    parser.addoption("--allow-dev-server", action="store_true",
+                     help=f"allow --base-url on port {DEV_SERVER_PORT}, the dev server with your real data/part91.sqlite")
+
+
+def pytest_sessionstart(session):
+    """Refuses to run against the dev server on port 3000 unless --allow-dev-server is given.
+    Tests create accounts and change data, and the dev server holds the real data/part91.sqlite."""
+    config = session.config
+    base_url = config.getoption("--base-url") or config.getini("base_url")
+    if base_url and urlparse(base_url).port == DEV_SERVER_PORT and not config.getoption("--allow-dev-server"):
+        raise pytest.UsageError(
+            f"--base-url {base_url} is the dev server, which uses your real data/part91.sqlite. Tests would "
+            f"create accounts and change data there. Run without --base-url to use the test server on port "
+            f"3100, or add --allow-dev-server if you really mean it."
+        )
 
 
 def pytest_collection_modifyitems(config, items):
@@ -67,7 +86,11 @@ def test_server(base_url):
     if is_up(base_url):
         yield base_url
         return
-    port = int(base_url.rsplit(":", 1)[1])
+    url = urlparse(base_url)
+    if url.hostname not in LOCAL_HOSTS or url.port is None:
+        pytest.exit(f"Nothing answers at {base_url}. A test server is started only for a local address with a "
+                    f"port, such as http://127.0.0.1:3100; a remote server has to be running already.", returncode=4)
+    port = url.port
     server = ServerProcess(port, TEST_DB_PATH, rate_limit_disabled=True, fresh_db=True)
     yield base_url
     server.stop(remove_db=True)
@@ -76,6 +99,20 @@ def test_server(base_url):
 @pytest.fixture
 def browser_context_args(browser_context_args):
     return {**browser_context_args, "timezone_id": "America/New_York", "locale": "en-US"}
+
+
+@pytest.fixture(scope="session")
+def browser_type_launch_args(browser_type_launch_args):
+    # Playwright starts Chromium with --no-sandbox unless told otherwise; keep the sandbox on.
+    return {**browser_type_launch_args, "chromium_sandbox": True}
+
+
+@pytest.fixture
+def context(context, base_url):
+    """Every test's browser talks only to the test server, so tests stay offline and never load
+    outside content into the browser. Contexts a test creates itself need block_outside_requests too."""
+    block_outside_requests(context, base_url)
+    return context
 
 
 @pytest.fixture
