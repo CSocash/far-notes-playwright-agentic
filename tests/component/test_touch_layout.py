@@ -11,6 +11,7 @@ from playwright.sync_api import expect
 from tests.mocks.data import custom_section, many_items, preflight
 from tests.pages.tracker_page import TrackerPage
 from tests.mocks.routes import mock_regulations, mock_signed_in, mock_signed_out, serve_auth_pages_from_disk, serve_tracker_from_disk
+from tests.support.network import block_outside_requests
 
 AUTH_PAGES = ["/login", "/create-account", "/forgot-password", "/reset-password"]
 TRACKER_FIELDS = {
@@ -27,6 +28,7 @@ def iphone_page(browser, playwright, base_url):
     """A page emulating an iPhone: touch input, so (pointer: coarse) matches."""
     device = {key: value for key, value in playwright.devices["iPhone 17"].items() if key != "default_browser_type"}
     context = browser.new_context(**device, base_url=base_url)
+    block_outside_requests(context, base_url)
     page = context.new_page()
     yield page
     context.close()
