@@ -10,19 +10,31 @@ from tests.support.db import ScratchDatabase
 from tests.support.server import TEST_DATA, ServerProcess, is_up
 from tests.support.users import register_user, sign_in
 
-LAYER_MARKERS = ("api", "component", "e2e")
-LAYER_NAMES = {"api": "API", "component": "Component", "e2e": "E2E"}
+LAYER_MARKERS = ("api", "component", "e2e", "device")
+LAYER_NAMES = {"api": "API", "component": "Component", "e2e": "E2E", "device": "Device"}
 PLATFORM_NAMES = {"ios": "iOS", "android": "Android", None: "Both platforms"}
 TEST_DB_PATH = TEST_DATA / "far-notes-test.sqlite"
 
 
-def pytest_collection_modifyitems(items):
-    """Marks each test with its layer from its folder, so `pytest -m api` works."""
+def pytest_addoption(parser):
+    parser.addoption("--run-device", action="store_true",
+                     help="also run tests/device: the iOS app in the Simulator through Appium (needs Xcode and Appium)")
+
+
+def pytest_collection_modifyitems(config, items):
+    """Marks each test with its layer from its folder, so `pytest -m api` works.
+    Device tests are left out unless --run-device is given, so a plain run needs no Simulator."""
+    deselected = []
     for item in items:
         parts = Path(item.fspath).parts
         for layer in LAYER_MARKERS:
             if layer in parts:
                 item.add_marker(layer)
+        if "device" in parts and not config.getoption("--run-device"):
+            deselected.append(item)
+    if deselected:
+        config.hook.pytest_deselected(items=deselected)
+        items[:] = [item for item in items if item not in deselected]
 
 
 @pytest.fixture(autouse=True)

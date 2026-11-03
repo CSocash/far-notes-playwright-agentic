@@ -18,6 +18,8 @@ FAA Regulations Study Log: a local, single-machine study tracker for Part 61 and
   - `.venv/bin/pytest` runs everything.
   - `.venv/bin/pytest -m api`, `-m component`, `-m e2e` or `-m smoke` runs one group. The layer markers come from the test's folder.
   - `.venv/bin/pytest -k tc_002` runs a single test.
+  - `.venv/bin/pytest --run-device -m device` runs the Appium tests in `tests/device` (the real iOS app on the iPhone 17 Simulator; needs Xcode and Appium 3 with the XCUITest driver). They are left out of plain runs. Each session rebuilds the app against the test server on port 3100, then restores the normal `mobile/ios` bundle. Add `--slowmo 1000` to watch it step by step.
+  - Allure report: `.venv/bin/pytest --alluredir=allure-results --clean-alluredir`, then `npx allure@3.22.1 generate allure-results` and `npx allure@3.22.1 open allure-report` (plain `npx allure` runs an old Allure 2 install).
   - The one exception is unit tests for the JavaScript helpers. They use Node's built-in runner, `node --test tests/unit` (none written yet).
   - A session fixture in `tests/conftest.py` starts its own server on port 3100 with `FAR_NOTES_DB=.test-data/far-notes-test.sqlite` and `FAR_NOTES_DISABLE_RATE_LIMIT=1`, so tests never touch `data/part91.sqlite`.
   - Test conventions are in the `playwright-best-practices` skill.
