@@ -357,6 +357,25 @@ Generated with the `create-scenarios` skill from the `far-notes-domain` skill (`
 **Business Rule**: SKILL.md › Architecture: api-client.js app mode
 **Suggested Layer**: Component
 
+### TC-022: On the iOS app a covered item is saved and the sign-in survives a relaunch
+**Category**: Happy Path
+**Priority**: P1
+**Preconditions**: The iOS app built against the test server and freshly installed on the iPhone 17 Simulator (no saved sign-in). A fresh user registered through the API.
+**Steps**:
+1. Sign in with the user's username and password.
+2. Expand "91.103 — Preflight action".
+3. Tap the checkmark next to 91.103(a).
+4. Quit the app and open it again.
+5. Expand "91.103 — Preflight action".
+
+**Expected Results**:
+- Before step 3, the "Mark 91.103(a) as covered" switch is off ("0"); after it, it is on ("1").
+- The API returns 91.103(a) with `covered: true` and today's date (the Simulator uses the Mac's clock and time zone).
+- After the relaunch the tracker opens without the sign-in screen, and 91.103(a) is still covered.
+
+**Business Rule**: business-rules.md › Mobile app clients (bearer token kept in the app); Study items (autosave, date set when covered)
+**Suggested Layer**: Device
+
 ---
 
 ## Business Rules (TC-100 – TC-199)
