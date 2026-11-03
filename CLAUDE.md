@@ -22,6 +22,8 @@ FAA Regulations Study Log: a local, single-machine study tracker for Part 61 and
   - Allure report: `.venv/bin/pytest --alluredir=allure-results --clean-alluredir`, then `npx allure@3.22.1 generate allure-results` and `npx allure@3.22.1 open allure-report` (plain `npx allure` runs an old Allure 2 install).
   - The one exception is unit tests for the JavaScript helpers. They use Node's built-in runner, `node --test tests/unit` (none written yet).
   - A session fixture in `tests/conftest.py` starts its own server on port 3100 with `FAR_NOTES_DB=.test-data/far-notes-test.sqlite` and `FAR_NOTES_DISABLE_RATE_LIMIT=1`, so tests never touch `data/part91.sqlite`.
+  - `--base-url` points the tests at another server (reused if it answers; a remote one must already be running). Port 3000, the dev server with the real `data/part91.sqlite`, is refused unless you add `--allow-dev-server`.
+  - Test browsers stay offline: Chromium runs with its sandbox on, and every request not to the server under test (Google Fonts, eCFR) is blocked. A context a test creates itself with `browser.new_context` needs `block_outside_requests` from `tests/support/network.py`.
   - Test conventions are in the `playwright-best-practices` skill.
 
 ## Architecture
