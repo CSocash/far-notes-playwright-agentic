@@ -1,4 +1,4 @@
-# Session Summary: 2026-10-27 to 2026-11-03
+# Session Summary: 2026-10-27 to 2026-11-04
 
 Claude Code session `agentic_development_UI_API_Mobile`. It took FAR Notes from an untested website to a tested website plus iOS and Android apps, with test reports and a repeatable best-practices review.
 
@@ -92,6 +92,37 @@ These topics were explained during the session:
 - Design patterns in the project
 - AI-assisted testing compared with agentic testing
 
+### 8. Test browser hardening (11-03 to 11-04) → PRs #9 and #10 and this PR
+
+Prompted by a warning that Playwright's bundled Chromium lags behind Chrome's security fixes and runs with its sandbox off.
+
+- **Checked the claims against this project:**
+  - Playwright 1.64.1 is the newest release, but its Chromium 156.0.8078.4 is older than Chrome's patched 156.0.8078.73.
+  - Playwright did pass `--no-sandbox` by default.
+  - The tests only visit the local test server, apart from Google Fonts in the E2E tests.
+  - There's no Docker setup and no Playwright MCP browsing agent.
+- **Changes (PR #9):**
+
+  | Change | Where |
+  |---|---|
+  | Chromium runs with its sandbox on | `browser_type_launch_args` in `tests/conftest.py` |
+  | Every test browser can reach only the server under test; Google Fonts, eCFR and anything else are blocked | `block_outside_requests` in `tests/support/network.py`, used by the `context` fixture and the iPhone context in `test_touch_layout.py` |
+  | `--base-url` on port 3000 (the dev server with the real `data/part91.sqlite`) is refused unless `--allow-dev-server` is given | `pytest_sessionstart` in `tests/conftest.py` |
+  | A remote `--base-url` that isn't answering stops with a clear message | `test_server` fixture |
+
+- **`CLAUDE.md` (PR #10)** describes `--base-url`, `--allow-dev-server` and the offline test browsers.
+- **Appium bound to this Mac (this PR).** The Appium server the device tests start now uses `--address 127.0.0.1`. Before, it listened on every network address with no password, so anyone on the same Wi-Fi could reach it while tests ran.
+- **Running against a QA server** was discussed but not built. It would need tests marked local-only (component, rate-limit and password-reset tests), a fix for the sign-up rate limit (QA with it off, or a pool of seeded users), and a way to tell test accounts apart from real ones.
+- **eCFR is not a data source.** The app never contacts eCFR: the regulation titles come from the `regulation-subsections.json` snapshot (2026-06-01), and eCFR appears only in links, which open in the user's own browser with `rel="noopener noreferrer"`.
+
+### 9. Running the app and the Appium test by hand (11-04)
+
+- **Starting servers:** `npm start` must be run from the project folder. It keeps the terminal until you stop it with Ctrl+C, so use a second tab for other commands.
+- **Stopping servers:** Ctrl+C in the server's own window, or `kill $(lsof -t -iTCP:<port> -sTCP:LISTEN)` from another one. Appium shows as `node` in `lsof` because it's a Node.js program.
+- **Viewing the app:** open `mobile/ios/App/App.xcodeproj` in Xcode, pick a Simulator and press Run. The app signs in automatically because it keeps a 7-day session token in local storage.
+- **The device test** (`.venv/bin/pytest --run-device -m device`) passed on each of 5 runs. It takes about 30 s once Xcode's build and Appium's helper app are cached, against about 5 minutes on the first run.
+- **macOS privacy prompt:** "Terminal would like to access data from other apps" appears because `xcodebuild`, `simctl` and Appium read Xcode's and the Simulator's files from a process started in Terminal.
+
 ## Problems hit and how they were solved
 
 | Problem | Cause | Fix |
@@ -109,6 +140,7 @@ These topics were explained during the session:
 - **eCFR links leave the app** and open in Safari. The proposed fix is an in-app browser.
 - **On iOS, an empty date field is invisible**, and the "covered" tap target is about 36×16pt. Apple recommends 44×44.
 - **There's no way to delete an account.**
+- **The regulation text is frozen at the 2026-06-01 snapshot**, while the links open the live eCFR, so wording and anchors can drift apart. Proposed fixes: show "Regulation text as of 2026-06-01" in the app, and an occasional opt-in check that compares the snapshot with eCFR.
 
 ## What's next (deferred backlog, in recommended order)
 
@@ -142,5 +174,9 @@ These topics were explained during the session:
 | 5 | First best-practices review |
 | 6 | Dated reviews and the `best-practices-review` skill |
 | 7 | Second best-practices review |
+| 8 | This session summary |
+| 9 | Test browser hardening and the dev-server guard |
+| 10 | `CLAUDE.md`: the dev-server guard and offline test browsers |
+| 11 | Appium bound to this Mac, and this update to the summary |
 
 The full transcript is in `~/.claude/projects/-Users-conniesocash-Documents-Programming-Playwright-Projects-far-notes-playwright-agentic/64d184f2-4e5e-43b6-a05c-daa3243caf7c.jsonl`. Resume the session with `claude --resume` and pick `agentic_development_UI_API_Mobile`.
