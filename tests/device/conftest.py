@@ -34,8 +34,9 @@ def appium_server():
     if _appium_is_up():
         yield APPIUM_URL
         return
-    process = subprocess.Popen(["appium", "--port", APPIUM_URL.rsplit(":", 1)[1], "--log-level", "warn"],
-                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # --address keeps Appium on this Mac; by default it listens on every network address, without a password.
+    process = subprocess.Popen(["appium", "--address", "127.0.0.1", "--port", APPIUM_URL.rsplit(":", 1)[1],
+                                "--log-level", "warn"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     deadline = time.monotonic() + 30
     while not _appium_is_up():
         if process.poll() is not None or time.monotonic() > deadline:
