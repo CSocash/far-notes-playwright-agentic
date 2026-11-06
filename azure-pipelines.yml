@@ -1,0 +1,50 @@
+# Azure Pipelines: runs the pytest + Playwright suite on every push and pull request to main.
+# It runs on the self-hosted agent (this Mac) in the Default pool, so it uses the Mac's own
+# Node and Python instead of installing them. Device (Appium) tests are skipped: they only run
+# with --run-device.
+
+trigger:
+  branches:
+    include:
+      - main
+
+pr:
+  branches:
+    include:
+      - main
+
+pool:
+  name: Default
+
+steps:
+  - script: |
+      node --version
+      python3 --version
+    displayName: Show Node and Python versions
+
+  - script: python3 -m venv .venv
+    displayName: Create Python virtual environment
+
+  - script: .venv/bin/pip install -r requirements-dev.txt
+    displayName: Install test libraries
+
+  - script: .venv/bin/playwright install chromium
+    displayName: Install Chromium
+
+  - script: .venv/bin/pytest --junitxml=junit/test-results.xml
+    displayName: Run tests
+
+  - task: PublishTestResults@2
+    displayName: Publish test results
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFormat: JUnit
+      testResultsFiles: junit/test-results.xml
+      testRunTitle: FAR Notes tests
+
+  - task: PublishPipelineArtifact@1
+    displayName: Save traces, screenshots and videos of failed tests
+    condition: failed()
+    inputs:
+      targetPath: test-results
+      artifact: playwright-failures
