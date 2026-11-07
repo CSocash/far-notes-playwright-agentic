@@ -1,7 +1,7 @@
 """Basic load test for the FAR Notes API. Run against a throwaway server, never port 3000.
 
-    FAR_NOTES_DB=.test-data/load.sqlite FAR_NOTES_DISABLE_RATE_LIMIT=1 PORT=3200 npm start
-    .venv/bin/locust -f tests/load/locustfile.py --host http://127.0.0.1:3200
+    FAR_NOTES_DB=.test-data/load.sqlite FAR_NOTES_DISABLE_RATE_LIMIT=1 PORT=3300 npm start
+    .venv/bin/locust -f tests/load/locustfile.py --host http://127.0.0.1:3300
 """
 import random
 import uuid

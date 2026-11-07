@@ -40,17 +40,17 @@ cd "/Users/conniesocash/Documents/Programming/Playwright Projects/far-notes-play
 **Terminal 1: start a throwaway server.** Never load test port 3000, which writes to the real `data/part91.sqlite`.
 
 ```bash
-FAR_NOTES_DB=.test-data/load.sqlite FAR_NOTES_DISABLE_RATE_LIMIT=1 PORT=3200 npm start
+FAR_NOTES_DB=.test-data/load.sqlite FAR_NOTES_DISABLE_RATE_LIMIT=1 PORT=3300 npm start
 ```
 
 - `FAR_NOTES_DB` points the server at a separate database. `.test-data/` is gitignored.
 - `FAR_NOTES_DISABLE_RATE_LIMIT=1` is required. Otherwise login returns 429 after 8 attempts in 15 minutes and the results mean nothing.
-- `PORT=3200` keeps it away from the dev server (3000) and the pytest server (3100).
+- `PORT=3300` keeps it away from the dev server (3000), the pytest server (3100) and the rate limit tests (3200).
 
 **Terminal 2: start Locust.**
 
 ```bash
-.venv/bin/locust -f tests/load/locustfile.py --host http://127.0.0.1:3200
+.venv/bin/locust -f tests/load/locustfile.py --host http://127.0.0.1:3300
 ```
 
 Open http://localhost:8089, set **10 users** with a **ramp up of 2 per second**, and let it run for at least a minute.
@@ -58,7 +58,7 @@ Open http://localhost:8089, set **10 users** with a **ramp up of 2 per second**,
 Without the browser UI (prints a summary at the end):
 
 ```bash
-.venv/bin/locust -f tests/load/locustfile.py --host http://127.0.0.1:3200 --headless -u 10 -r 2 -t 30s --only-summary
+.venv/bin/locust -f tests/load/locustfile.py --host http://127.0.0.1:3300 --headless -u 10 -r 2 -t 30s --only-summary
 ```
 
 Each run adds `load_...` accounts to `.test-data/load.sqlite`. Delete that file whenever you want a fresh start.
