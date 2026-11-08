@@ -47,4 +47,5 @@ steps:
     condition: failed()
     inputs:
       targetPath: test-results
-      artifact: playwright-failures
+      # Artifact names must be unique within a run, so a rerun of failed jobs gets its own name.
+      artifact: playwright-failures-attempt-$(System.JobAttempt)

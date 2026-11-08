@@ -1,6 +1,7 @@
 """Start and stop FAR Notes server processes for tests, always against a throwaway database."""
 
 import os
+import socket
 import subprocess
 import time
 import urllib.error
@@ -21,11 +22,25 @@ def is_up(base_url):
         return False
 
 
+def port_in_use(port):
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=1):
+            return True
+    except OSError:
+        return False
+
+
 class ServerProcess:
     def __init__(self, port, db_path, rate_limit_disabled, fresh_db=False):
         self.port = port
         self.base_url = f"http://127.0.0.1:{port}"
         self.db_path = Path(db_path)
+        # Without this check the new server fails to start, but the readiness check below gets an answer
+        # from whatever already holds the port, and the tests silently run against the wrong server.
+        if port_in_use(port):
+            raise RuntimeError(f"Port {port} is already in use, so this test server can't start. "
+                               f"Stop whatever is running there (lsof -nP -iTCP:{port} -sTCP:LISTEN), "
+                               f"for example a server left over from a manual or load test run.")
         if fresh_db:
             self._remove_db()
         env = {
