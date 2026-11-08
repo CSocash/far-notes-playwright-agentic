@@ -11,3 +11,8 @@ data/backups/
 allure-results/
 allure-report/
 junit/
+
+# macOS Finder folder settings
+.DS_Store
+# Output from the Playwright MCP browser (console logs, page snapshots)
+.playwright-mcp/
