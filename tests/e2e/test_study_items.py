@@ -25,7 +25,7 @@ def test_tc_006_marking_a_subsection_covered_persists(signed_in_page, tracker_pa
         expect(item.covered_label).to_have_text("Yes")
         expect(item.date).to_have_value("2026-06-01")
         expect(tracker_page.covered_count).to_have_text("1")
-        expect(tracker_page.remaining_count).to_have_text("246")
+        expect(tracker_page.remaining_count).to_have_text("999")  # DEMO: deliberately wrong, never merge
 
     assert_covered_today()
 
