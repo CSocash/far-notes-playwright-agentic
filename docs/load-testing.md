@@ -1,5 +1,9 @@
 # Load Testing Notes
 
+> **Where load tests normally run:** on a **staging environment**, a separate copy of the system set up as much like production as possible (same kind of servers, configuration, database size and network). Results only predict production behavior when the environment matches it, and staging keeps the extra traffic and test accounts away from real users. Production load tests are rare and planned with the operations team.
+>
+> FAR Notes is a single-machine app with no staging environment, so these notes use a **throwaway local server** on port 3300 with its own database. That's fine for learning and for catching regressions between runs, but the numbers are best-case: Locust and the server share one Mac, so there's no network delay, and the database is small.
+
 Notes from setting up the first load test for FAR Notes with [Locust](https://locust.io), a Python load testing tool. The script is `tests/load/locustfile.py`.
 
 The app server is Node (`server.js`), but load testing only sends HTTP requests, so the server's language doesn't matter. Locust fits because the rest of the test suite is Python.
